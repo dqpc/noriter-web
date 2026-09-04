@@ -27,3 +27,6 @@ dist-ssr
 CLAUDE.md
 CLAUDE.local.md
 .claude/
+
+# wrangler
+.wrangler/
