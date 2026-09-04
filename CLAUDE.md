@@ -45,3 +45,13 @@ src/
 - 터치 입력은 pointer 이벤트로 처리하고 캔버스에 `touch-action: none` 을 준다.
 - 광고 태그는 `.ad-slot` 안에만 넣고 게임 캔버스 안에는 넣지 않는다.
 - 커밋 메시지는 한국어 또는 영어 자유. 작은 단위로 자주.
+
+## 브랜치 전략 (git flow)
+
+- `main`: 운영 배포 상태. release/hotfix 머지로만 변경.
+- `develop`: 통합 브랜치, 기본 브랜치. feature 는 여기로 PR.
+- `feature/<topic>`: develop 에서 분기 → PR → develop 머지.
+- `release/<version>`: 배포 준비. develop 에서 분기 → main 과 develop 양쪽에 머지, main 에 태그.
+- `hotfix/<topic>`: main 에서 분기 → main 과 develop 양쪽에 머지.
+- main/develop 은 직접 push 금지 (룰셋으로 차단됨). **모든 변경은 PR 로** 기록을 남긴다.
+- 커밋에 `Co-Authored-By` 를 넣지 않는다.
