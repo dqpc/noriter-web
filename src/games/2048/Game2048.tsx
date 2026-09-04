@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { GameHost } from '../types'
+import type { GameHost, GameOptions } from '../types'
+import { getPreference, setPreference } from '../../lib/storage'
 import { formatDuration } from '../../lib/time'
-import { DEFAULT_TARGET, isEnded, newGame, stepWithTrace, type Board, type Direction, type GameState, type TileMove } from './logic'
+import {
+  DEFAULT_TARGET,
+  TARGETS,
+  isEnded,
+  newGame,
+  stepWithTrace,
+  type Board,
+  type Direction,
+  type GameState,
+  type TileMove,
+} from './logic'
 
 const COLORS: Record<number, { bg: string; fg: string }> = {
   2: { bg: '#eee4da', fg: '#776e65' },
@@ -32,7 +43,16 @@ const KEY_DIRS: Record<string, Direction> = {
 }
 
 const SWIPE_MIN_PX = 24
-const WIN_TILE = Number(import.meta.env.VITE_WIN_TILE) || DEFAULT_TARGET
+function readTarget(options?: GameOptions): number | null {
+  const fromOptions = Number(options?.target)
+  if (TARGETS.includes(fromOptions as (typeof TARGETS)[number])) return fromOptions
+  return null
+}
+
+function lastTarget(): number {
+  const saved = Number(getPreference('2048', 'target'))
+  return TARGETS.includes(saved as (typeof TARGETS)[number]) ? saved : DEFAULT_TARGET
+}
 const TIMER_TICK_MS = 50
 const SLIDE_MS = 110 // 타일이 미끄러지는 시간
 const POP_MS = 120 // 합쳐진 타일이 튀는 시간, 새 타일이 커지는 시간
@@ -154,8 +174,10 @@ function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null
   return ctx
 }
 
-export function Game2048({ host }: { host: GameHost }) {
-  const stateRef = useRef<GameState>(newGame(Math.random, WIN_TILE))
+export function Game2048({ host, options }: { host: GameHost; options?: GameOptions }) {
+  const fixedTarget = readTarget(options)
+  const [target, setTarget] = useState<number | null>(fixedTarget)
+  const stateRef = useRef<GameState>(newGame(Math.random, fixedTarget ?? DEFAULT_TARGET))
   const [score, setScore] = useState(0)
   const [ended, setEnded] = useState<{ won: boolean; elapsedMs: number } | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
@@ -191,6 +213,7 @@ export function Game2048({ host }: { host: GameHost }) {
 
   const play = useCallback(
     (dir: Direction) => {
+      if (target === null) return
       const res = stepWithTrace(stateRef.current, dir)
       if (!res.moved) return
       if (startedAt.current === null) startedAt.current = performance.now()
@@ -207,19 +230,40 @@ export function Game2048({ host }: { host: GameHost }) {
       setScore(res.state.score)
       render()
     },
+    [render, target],
+  )
+
+  const startWith = useCallback(
+    (next: number) => {
+      cancelAnimationFrame(rafRef.current)
+      animRef.current = null
+      stateRef.current = newGame(Math.random, next)
+      startedAt.current = null
+      setScore(0)
+      setElapsedMs(0)
+      setEnded(null)
+      setTarget(next)
+      render()
+    },
     [render],
   )
 
-  const restart = useCallback(() => {
+  const restart = useCallback(() => startWith(target ?? DEFAULT_TARGET), [startWith, target])
+
+  const pickTarget = useCallback(
+    (next: number) => {
+      setPreference('2048', 'target', String(next))
+      startWith(next)
+    },
+    [startWith],
+  )
+
+  const changeTarget = useCallback(() => {
     cancelAnimationFrame(rafRef.current)
     animRef.current = null
-    stateRef.current = newGame(Math.random, WIN_TILE)
-    startedAt.current = null
-    setScore(0)
-    setElapsedMs(0)
     setEnded(null)
-    render()
-  }, [render])
+    setTarget(null)
+  }, [])
 
   useEffect(() => {
     host.onScore(score)
@@ -284,9 +328,16 @@ export function Game2048({ host }: { host: GameHost }) {
           <span className="label">TIME</span>
           <span className="value g2048-time">{formatDuration(ended ? ended.elapsedMs : elapsedMs)}</span>
         </div>
-        <button type="button" className="btn" onClick={restart}>
-          새 게임
-        </button>
+        <div className="g2048-hud-actions">
+          {fixedTarget === null && (
+            <button type="button" className="btn btn-ghost" onClick={changeTarget}>
+              목표 {target ?? '-'}
+            </button>
+          )}
+          <button type="button" className="btn" onClick={restart} disabled={target === null}>
+            새 게임
+          </button>
+        </div>
       </div>
       <div className="g2048-board-wrap">
         <canvas
@@ -297,18 +348,42 @@ export function Game2048({ host }: { host: GameHost }) {
           onPointerCancel={() => (touchStart.current = null)}
           aria-label="2048 보드"
         />
-        {ended && (
+        {target === null && (
           <div className="g2048-overlay">
-            <p>{ended.won ? `${WIN_TILE} 클리어!` : '게임 오버'}</p>
+            <p>목표 타일</p>
+            <div className="g2048-targets">
+              {TARGETS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={t === lastTarget() ? 'btn' : 'btn btn-ghost'}
+                  onClick={() => pickTarget(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {ended && target !== null && (
+          <div className="g2048-overlay">
+            <p>{ended.won ? `${target} 클리어!` : '게임 오버'}</p>
             <p className="g2048-final">{score}</p>
             {ended.won && <p className="g2048-clear-time">{formatDuration(ended.elapsedMs)}</p>}
-            <button type="button" className="btn" onClick={restart}>
-              다시 하기
-            </button>
+            <div className="g2048-targets">
+              <button type="button" className="btn" onClick={restart}>
+                다시 하기
+              </button>
+              {fixedTarget === null && (
+                <button type="button" className="btn btn-ghost" onClick={changeTarget}>
+                  목표 변경
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
-      <p className="g2048-help">스와이프 또는 방향키로 타일을 합쳐 {WIN_TILE} 을 만드세요.</p>
+      <p className="g2048-help">스와이프 또는 방향키로 타일을 합쳐 {target ?? "목표"} 를 만드세요.</p>
     </div>
   )
 }
