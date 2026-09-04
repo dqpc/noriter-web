@@ -165,11 +165,18 @@ export interface GameState {
   score: number
   over: boolean
   won: boolean
+  target: number
 }
 
-export function newGame(random: () => number = Math.random): GameState {
+export const DEFAULT_TARGET = 2048
+
+export function newGame(random: () => number = Math.random, target = DEFAULT_TARGET): GameState {
   const board = spawnTile(spawnTile(emptyBoard(), random), random)
-  return { board, score: 0, over: false, won: false }
+  return { board, score: 0, over: false, won: false, target }
+}
+
+export function isEnded(state: GameState): boolean {
+  return state.over || state.won
 }
 
 export interface StepResult {
@@ -184,7 +191,7 @@ export function stepWithTrace(
   dir: Direction,
   random: () => number = Math.random,
 ): StepResult {
-  if (state.over) return { state, moved: false, moves: [], spawned: null }
+  if (isEnded(state)) return { state, moved: false, moves: [], spawned: null }
   const res = moveWithTrace(state.board, dir)
   if (!res.moved) return { state, moved: false, moves: [], spawned: null }
   const pick = pickSpawn(res.board, random)!
@@ -196,8 +203,9 @@ export function stepWithTrace(
     state: {
       board,
       score,
-      won: state.won || maxTile(board) >= 2048,
+      won: maxTile(board) >= state.target,
       over: !canMove(board),
+      target: state.target,
     },
     moved: true,
     moves: res.moves,

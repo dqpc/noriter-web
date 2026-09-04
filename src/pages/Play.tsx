@@ -18,7 +18,7 @@ export function Play() {
         setBest((b) => Math.max(b, score))
       },
       onGameOver: () => {
-        // TODO: 로그인/리더보드 붙이면 여기서 서버에 제출
+        // TODO: 로그인/리더보드 붙이면 여기서 서버에 제출 (score, result.won, result.elapsedMs)
       },
     }
   }, [game?.id])

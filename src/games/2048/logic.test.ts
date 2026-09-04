@@ -7,6 +7,7 @@ import {
   newGame,
   slideRow,
   spawnTile,
+  isEnded,
   step,
   stepWithTrace,
   traceRow,
@@ -101,14 +102,16 @@ describe('spawnTile / newGame / step', () => {
     expect(s.score).toBe(0)
   })
   it('step 은 점수를 누적하고 타일을 하나 추가한다', () => {
-    const state = { board: emptyBoard(), score: 0, over: false, won: false }
+    const state = newGame(() => 0, 2048)
+    state.board = emptyBoard()
     state.board[0] = [2, 2, 0, 0]
     const next = step(state, 'left', () => 0)
     expect(next.score).toBe(4)
     expect(next.board.flat().filter((v) => v !== 0)).toHaveLength(2)
   })
   it('움직임이 없으면 같은 state 를 반환한다', () => {
-    const state = { board: emptyBoard(), score: 0, over: false, won: false }
+    const state = newGame(() => 0)
+    state.board = emptyBoard()
     state.board[0] = [2, 0, 0, 0]
     expect(step(state, 'left')).toBe(state)
   })
@@ -151,7 +154,8 @@ describe('traceRow / moveWithTrace', () => {
     expect(up.moves).toContainEqual({ from: [2, 3], to: [0, 3], value: 2, merged: true })
   })
   it('stepWithTrace 는 새 타일 위치를 알려 준다', () => {
-    const state = { board: emptyBoard(), score: 0, over: false, won: false }
+    const state = newGame(() => 0)
+    state.board = emptyBoard()
     state.board[0] = [0, 0, 0, 2]
     const r = stepWithTrace(state, 'left', () => 0)
     expect(r.moved).toBe(true)
@@ -160,5 +164,20 @@ describe('traceRow / moveWithTrace', () => {
     const [sr, sc] = r.spawned as [number, number]
     expect(r.state.board[sr][sc]).toBe(2)
     expect(sr === 0 && sc === 0).toBe(false)
+  })
+})
+
+describe('target', () => {
+  it('목표 타일에 도달하면 won 이 되고 더 이상 진행되지 않는다', () => {
+    const state = newGame(() => 0, 8)
+    state.board = emptyBoard()
+    state.board[0] = [4, 4, 0, 0]
+    const won = step(state, 'left', () => 0)
+    expect(won.won).toBe(true)
+    expect(isEnded(won)).toBe(true)
+    expect(step(won, 'right')).toBe(won)
+  })
+  it('기본 목표는 2048', () => {
+    expect(newGame().target).toBe(2048)
   })
 })

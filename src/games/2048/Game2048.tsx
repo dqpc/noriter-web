@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameHost } from '../types'
-import { newGame, stepWithTrace, type Board, type Direction, type GameState, type TileMove } from './logic'
+import { formatDuration } from '../../lib/time'
+import { DEFAULT_TARGET, isEnded, newGame, stepWithTrace, type Board, type Direction, type GameState, type TileMove } from './logic'
 
 const COLORS: Record<number, { bg: string; fg: string }> = {
   2: { bg: '#eee4da', fg: '#776e65' },
@@ -31,6 +32,8 @@ const KEY_DIRS: Record<string, Direction> = {
 }
 
 const SWIPE_MIN_PX = 24
+const WIN_TILE = Number(import.meta.env.VITE_WIN_TILE) || DEFAULT_TARGET
+const TIMER_TICK_MS = 50
 const SLIDE_MS = 110 // 타일이 미끄러지는 시간
 const POP_MS = 120 // 합쳐진 타일이 튀는 시간, 새 타일이 커지는 시간
 
@@ -152,9 +155,11 @@ function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null
 }
 
 export function Game2048({ host }: { host: GameHost }) {
-  const stateRef = useRef<GameState>(newGame())
+  const stateRef = useRef<GameState>(newGame(Math.random, WIN_TILE))
   const [score, setScore] = useState(0)
-  const [over, setOver] = useState(false)
+  const [ended, setEnded] = useState<{ won: boolean; elapsedMs: number } | null>(null)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const startedAt = useRef<number | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<Anim | null>(null)
@@ -174,7 +179,10 @@ export function Game2048({ host }: { host: GameHost }) {
     }
     if (drawAnimated(ctx, g, anim, performance.now())) {
       animRef.current = null
-      if (stateRef.current.over) setOver(true)
+      if (isEnded(stateRef.current)) {
+        const elapsed = startedAt.current === null ? 0 : performance.now() - startedAt.current
+        setEnded({ won: stateRef.current.won, elapsedMs: elapsed })
+      }
       return
     }
     cancelAnimationFrame(rafRef.current)
@@ -185,6 +193,7 @@ export function Game2048({ host }: { host: GameHost }) {
     (dir: Direction) => {
       const res = stepWithTrace(stateRef.current, dir)
       if (!res.moved) return
+      if (startedAt.current === null) startedAt.current = performance.now()
       const merged = new Set<string>()
       for (const m of res.moves) if (m.merged) merged.add(key(m.to[0], m.to[1]))
       animRef.current = {
@@ -204,9 +213,11 @@ export function Game2048({ host }: { host: GameHost }) {
   const restart = useCallback(() => {
     cancelAnimationFrame(rafRef.current)
     animRef.current = null
-    stateRef.current = newGame()
+    stateRef.current = newGame(Math.random, WIN_TILE)
+    startedAt.current = null
     setScore(0)
-    setOver(false)
+    setElapsedMs(0)
+    setEnded(null)
     render()
   }, [render])
 
@@ -214,8 +225,16 @@ export function Game2048({ host }: { host: GameHost }) {
     host.onScore(score)
   }, [host, score])
   useEffect(() => {
-    if (over) host.onGameOver(stateRef.current.score)
-  }, [host, over])
+    if (ended) host.onGameOver(stateRef.current.score, ended)
+  }, [host, ended])
+
+  useEffect(() => {
+    if (ended) return
+    const id = window.setInterval(() => {
+      if (startedAt.current !== null) setElapsedMs(performance.now() - startedAt.current)
+    }, TIMER_TICK_MS)
+    return () => window.clearInterval(id)
+  }, [ended])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -261,6 +280,10 @@ export function Game2048({ host }: { host: GameHost }) {
           <span className="label">SCORE</span>
           <span className="value">{score}</span>
         </div>
+        <div className="g2048-score">
+          <span className="label">TIME</span>
+          <span className="value g2048-time">{formatDuration(ended ? ended.elapsedMs : elapsedMs)}</span>
+        </div>
         <button type="button" className="btn" onClick={restart}>
           새 게임
         </button>
@@ -274,17 +297,18 @@ export function Game2048({ host }: { host: GameHost }) {
           onPointerCancel={() => (touchStart.current = null)}
           aria-label="2048 보드"
         />
-        {over && (
+        {ended && (
           <div className="g2048-overlay">
-            <p>게임 오버</p>
+            <p>{ended.won ? `${WIN_TILE} 클리어!` : '게임 오버'}</p>
             <p className="g2048-final">{score}</p>
+            {ended.won && <p className="g2048-clear-time">{formatDuration(ended.elapsedMs)}</p>}
             <button type="button" className="btn" onClick={restart}>
               다시 하기
             </button>
           </div>
         )}
       </div>
-      <p className="g2048-help">스와이프 또는 방향키로 타일을 합치세요.</p>
+      <p className="g2048-help">스와이프 또는 방향키로 타일을 합쳐 {WIN_TILE} 을 만드세요.</p>
     </div>
   )
 }
