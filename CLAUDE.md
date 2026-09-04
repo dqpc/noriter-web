@@ -1,6 +1,7 @@
-# noriter
+# noriter-web
 
-가볍게 한판 즐기는 웹 게임 포털. 모바일 브라우저 우선, 데스크톱도 지원.
+noriter 의 프론트엔드. 가볍게 한판 즐기는 웹 게임 포털, 모바일 브라우저 우선.
+백엔드는 별도 저장소 `noriter-api` (Spring Boot).
 
 ## 스택
 
@@ -8,7 +9,7 @@
 - 게임 화면은 Canvas 로 직접 그린다. 포털 UI(목록, HUD, 댓글 등)만 React.
 - 테스트: vitest. 게임 규칙은 순수 함수로 두고 반드시 테스트를 붙인다.
 - 배포: Cloudflare Pages (정적). SPA 라우팅은 `public/_redirects` 가 처리.
-- 백엔드(로그인·리더보드·댓글)는 별도 Spring Boot 프로젝트로 예정. 아직 없음.
+- 백엔드(로그인·리더보드·댓글)는 `noriter-api` 저장소의 Spring Boot. 아직 API 미연동.
 
 ## 명령
 
