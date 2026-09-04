@@ -21,11 +21,11 @@ const COLORS: Record<number, { bg: string; fg: string }> = {
   16: { bg: '#f59563', fg: '#f9f6f2' },
   32: { bg: '#f67c5f', fg: '#f9f6f2' },
   64: { bg: '#f65e3b', fg: '#f9f6f2' },
-  128: { bg: '#edcf72', fg: '#f9f6f2' },
-  256: { bg: '#edcc61', fg: '#f9f6f2' },
-  512: { bg: '#edc850', fg: '#f9f6f2' },
-  1024: { bg: '#edc53f', fg: '#f9f6f2' },
-  2048: { bg: '#edc22e', fg: '#f9f6f2' },
+  128: { bg: '#f2c14e', fg: '#5c4a00' },
+  256: { bg: '#4fb286', fg: '#f9f6f2' },
+  512: { bg: '#2e86de', fg: '#f9f6f2' },
+  1024: { bg: '#8e44ad', fg: '#f9f6f2' },
+  2048: { bg: '#e84393', fg: '#f9f6f2' },
 }
 const SUPER = { bg: '#3c3a32', fg: '#f9f6f2' }
 const EMPTY_BG = '#3f3a36'
@@ -43,15 +43,18 @@ const KEY_DIRS: Record<string, Direction> = {
 }
 
 const SWIPE_MIN_PX = 24
+const APP_ENV = import.meta.env.VITE_APP_ENV
+const targets: readonly number[] = APP_ENV === 'dev' ? [64, ...TARGETS] : TARGETS
+
 function readTarget(options?: GameOptions): number | null {
   const fromOptions = Number(options?.target)
-  if (TARGETS.includes(fromOptions as (typeof TARGETS)[number])) return fromOptions
+  if (targets.includes(fromOptions)) return fromOptions
   return null
 }
 
 function lastTarget(): number {
   const saved = Number(getPreference('2048', 'target'))
-  return TARGETS.includes(saved as (typeof TARGETS)[number]) ? saved : DEFAULT_TARGET
+  return targets.includes(saved) ? saved : DEFAULT_TARGET
 }
 const TIMER_TICK_MS = 50
 const SLIDE_MS = 110 // 타일이 미끄러지는 시간
@@ -352,7 +355,7 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
           <div className="g2048-overlay">
             <p>목표 타일</p>
             <div className="g2048-targets">
-              {TARGETS.map((t) => (
+              {targets.map((t) => (
                 <button
                   key={t}
                   type="button"
