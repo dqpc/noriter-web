@@ -16,5 +16,3 @@ npm run dev
 - 2048
 
 ## 개발 메모
-
-구조와 규칙은 [CLAUDE.md](./CLAUDE.md) 참고.

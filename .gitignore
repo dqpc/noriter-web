@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code 로컬 지침 (git 에 올리지 않음)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
+# wrangler
+.wrangler/

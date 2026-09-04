@@ -210,3 +210,13 @@ body {
   color: var(--muted);
   font-size: 13px;
 }
+
+.g2048-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+}
+.g2048-clear-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  color: var(--muted);
+}
