@@ -1,5 +1,3 @@
-/** localStorage 래퍼. 나중에 로그인 시 서버 동기화로 대체할 수 있도록 한 곳에 모아 둔다. */
-
 const PREFIX = 'noriter:'
 
 function safeGet(key: string): string | null {

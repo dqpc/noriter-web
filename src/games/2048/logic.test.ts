@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { canMove, emptyBoard, move, newGame, slideRow, spawnTile, step, type Board } from './logic'
+import {
+  canMove,
+  emptyBoard,
+  move,
+  moveWithTrace,
+  newGame,
+  slideRow,
+  spawnTile,
+  step,
+  stepWithTrace,
+  traceRow,
+  type Board,
+} from './logic'
 
 describe('slideRow', () => {
   it('빈 칸을 건너뛰고 왼쪽으로 민다', () => {
@@ -99,5 +111,42 @@ describe('spawnTile / newGame / step', () => {
     const state = { board: emptyBoard(), score: 0, over: false, won: false }
     state.board[0] = [2, 0, 0, 0]
     expect(step(state, 'left')).toBe(state)
+  })
+})
+
+describe('traceRow / moveWithTrace', () => {
+  it('traceRow 는 각 타일의 출발·도착을 기록한다', () => {
+    const r = traceRow([2, 0, 2, 4])
+    expect(r.row).toEqual([4, 4, 0, 0])
+    expect(r.moves).toEqual([
+      { from: 0, to: 0, value: 2, merged: true },
+      { from: 2, to: 0, value: 2, merged: true },
+      { from: 3, to: 1, value: 4, merged: false },
+    ])
+  })
+  it('moveWithTrace 는 move 와 같은 보드를 내고 좌표를 방향에 맞게 매핑한다', () => {
+    const board: Board = [
+      [0, 0, 0, 2],
+      [0, 0, 0, 0],
+      [0, 0, 0, 2],
+      [0, 0, 0, 0],
+    ]
+    const r = moveWithTrace(board, 'down')
+    expect(r.board).toEqual(move(board, 'down').board)
+    expect(r.board[3][3]).toBe(4)
+    expect(r.moves).toHaveLength(2)
+    expect(r.moves.every((m) => m.to[0] === 3 && m.to[1] === 3 && m.merged)).toBe(true)
+    expect(r.moves.map((m) => m.from)).toEqual([[2, 3], [0, 3]])
+  })
+  it('stepWithTrace 는 새 타일 위치를 알려 준다', () => {
+    const state = { board: emptyBoard(), score: 0, over: false, won: false }
+    state.board[0] = [0, 0, 0, 2]
+    const r = stepWithTrace(state, 'left', () => 0)
+    expect(r.moved).toBe(true)
+    expect(r.state.board[0][0]).toBe(2)
+    expect(r.spawned).not.toBeNull()
+    const [sr, sc] = r.spawned!
+    expect(r.state.board[sr][sc]).toBe(2)
+    expect(sr === 0 && sc === 0).toBe(false)
   })
 })
