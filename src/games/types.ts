@@ -16,5 +16,6 @@ export interface GameDefinition {
   id: string
   name: string
   description: string
+  Icon: ComponentType<{ size?: number }>
   Component: ComponentType<{ host: GameHost; options?: GameOptions }>
 }
