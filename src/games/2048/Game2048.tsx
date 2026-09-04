@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameHost, GameOptions } from '../types'
+import { mulberry32 } from '../../lib/random'
 import { getPreference, setPreference } from '../../lib/storage'
 import { formatDuration } from '../../lib/time'
 import {
@@ -177,10 +178,21 @@ function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null
   return ctx
 }
 
+function makeRng(options?: GameOptions): () => number {
+  const seed = Number(options?.seed)
+  return Number.isInteger(seed) && seed > 0 ? mulberry32(seed) : Math.random
+}
+
 export function Game2048({ host, options }: { host: GameHost; options?: GameOptions }) {
   const fixedTarget = readTarget(options)
+  const roomMode = fixedTarget !== null
   const [target, setTarget] = useState<number | null>(fixedTarget)
-  const stateRef = useRef<GameState>(newGame(Math.random, fixedTarget ?? DEFAULT_TARGET))
+  const [initial] = useState(() => {
+    const rng = makeRng(options)
+    return { rng, state: newGame(rng, fixedTarget ?? DEFAULT_TARGET) }
+  })
+  const rngRef = useRef(initial.rng)
+  const stateRef = useRef<GameState>(initial.state)
   const [score, setScore] = useState(0)
   const [ended, setEnded] = useState<{ won: boolean; elapsedMs: number } | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
@@ -217,7 +229,7 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
   const play = useCallback(
     (dir: Direction) => {
       if (target === null) return
-      const res = stepWithTrace(stateRef.current, dir)
+      const res = stepWithTrace(stateRef.current, dir, rngRef.current)
       if (!res.moved) return
       if (startedAt.current === null) startedAt.current = performance.now()
       const merged = new Set<string>()
@@ -240,7 +252,8 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
     (next: number) => {
       cancelAnimationFrame(rafRef.current)
       animRef.current = null
-      stateRef.current = newGame(Math.random, next)
+      rngRef.current = makeRng(options)
+      stateRef.current = newGame(rngRef.current, next)
       startedAt.current = null
       setScore(0)
       setElapsedMs(0)
@@ -248,7 +261,7 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
       setTarget(next)
       render()
     },
-    [render],
+    [render, options],
   )
 
   const restart = useCallback(() => startWith(target ?? DEFAULT_TARGET), [startWith, target])
@@ -332,14 +345,18 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
           <span className="value g2048-time">{formatDuration(ended ? ended.elapsedMs : elapsedMs)}</span>
         </div>
         <div className="g2048-hud-actions">
-          {fixedTarget === null && (
-            <button type="button" className="btn btn-ghost" onClick={changeTarget}>
-              목표 {target ?? '-'}
-            </button>
+          {roomMode ? (
+            <span className="g2048-target-badge">목표 {target}</span>
+          ) : (
+            <>
+              <button type="button" className="btn btn-ghost" onClick={changeTarget}>
+                목표 {target ?? '-'}
+              </button>
+              <button type="button" className="btn" onClick={restart} disabled={target === null}>
+                새 게임
+              </button>
+            </>
           )}
-          <button type="button" className="btn" onClick={restart} disabled={target === null}>
-            새 게임
-          </button>
         </div>
       </div>
       <div className="g2048-board-wrap">
@@ -373,16 +390,16 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
             <p>{ended.won ? `${target} 클리어!` : '게임 오버'}</p>
             <p className="g2048-final">{score}</p>
             {ended.won && <p className="g2048-clear-time">{formatDuration(ended.elapsedMs)}</p>}
-            <div className="g2048-targets">
-              <button type="button" className="btn" onClick={restart}>
-                다시 하기
-              </button>
-              {fixedTarget === null && (
+            {!roomMode && (
+              <div className="g2048-targets">
+                <button type="button" className="btn" onClick={restart}>
+                  다시 하기
+                </button>
                 <button type="button" className="btn btn-ghost" onClick={changeTarget}>
                   목표 변경
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>

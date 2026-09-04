@@ -10,7 +10,7 @@ export function Home() {
       <ul className="game-list">
         {GAMES.map((g) => (
           <li key={g.id}>
-            <Link to={`/play/${g.id}`} className="game-card">
+            <Link to={`/games/${g.id}`} className="game-card">
               <span className="game-card-name">{g.name}</span>
               <span className="game-card-desc">{g.description}</span>
               <span className="game-card-best">최고 {getBestScore(g.id)}</span>
