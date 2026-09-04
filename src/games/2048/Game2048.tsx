@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameHost } from '../types'
-import { newGame, step, type Board, type Direction, type GameState } from './logic'
+import { newGame, stepWithTrace, type Board, type Direction, type GameState, type TileMove } from './logic'
 
 const COLORS: Record<number, { bg: string; fg: string }> = {
-  0: { bg: '#3f3a36', fg: '#3f3a36' },
   2: { bg: '#eee4da', fg: '#776e65' },
   4: { bg: '#ede0c8', fg: '#776e65' },
   8: { bg: '#f2b179', fg: '#f9f6f2' },
@@ -17,6 +16,8 @@ const COLORS: Record<number, { bg: string; fg: string }> = {
   2048: { bg: '#edc22e', fg: '#f9f6f2' },
 }
 const SUPER = { bg: '#3c3a32', fg: '#f9f6f2' }
+const EMPTY_BG = '#3f3a36'
+const BOARD_BG = '#5c554f'
 
 const KEY_DIRS: Record<string, Direction> = {
   ArrowUp: 'up',
@@ -30,45 +31,35 @@ const KEY_DIRS: Record<string, Direction> = {
 }
 
 const SWIPE_MIN_PX = 24
+const SLIDE_MS = 110 // 타일이 미끄러지는 시간
+const POP_MS = 120 // 합쳐진 타일이 튀는 시간, 새 타일이 커지는 시간
 
-function draw(canvas: HTMLCanvasElement, board: Board) {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  const dpr = window.devicePixelRatio || 1
-  const size = canvas.clientWidth
-  if (canvas.width !== size * dpr) {
-    canvas.width = size * dpr
-    canvas.height = size * dpr
-  }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+interface Anim {
+  startedAt: number
+  moves: TileMove[]
+  mergedAt: Array<[number, number]>
+  spawned: [number, number] | null
+  board: Board
+}
 
-  const n = board.length
+interface Geometry {
+  size: number
+  gap: number
+  cell: number
+}
+
+function geometry(size: number, n: number): Geometry {
   const gap = size * 0.03
   const cell = (size - gap * (n + 1)) / n
-  const radius = cell * 0.1
+  return { size, gap, cell }
+}
 
-  ctx.fillStyle = '#5c554f'
-  roundRect(ctx, 0, 0, size, size, gap * 1.5)
-  ctx.fill()
+function cellOrigin(g: Geometry, r: number, c: number): [number, number] {
+  return [g.gap + c * (g.cell + g.gap), g.gap + r * (g.cell + g.gap)]
+}
 
-  board.forEach((row, r) =>
-    row.forEach((v, c) => {
-      const x = gap + c * (cell + gap)
-      const y = gap + r * (cell + gap)
-      const color = COLORS[v] ?? SUPER
-      ctx.fillStyle = color.bg
-      roundRect(ctx, x, y, cell, cell, radius)
-      ctx.fill()
-      if (v === 0) return
-      const digits = String(v).length
-      const fontSize = cell * (digits <= 2 ? 0.5 : digits === 3 ? 0.42 : 0.34)
-      ctx.fillStyle = color.fg
-      ctx.font = `700 ${fontSize}px system-ui, -apple-system, sans-serif`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(String(v), x + cell / 2, y + cell / 2 + fontSize * 0.05)
-    }),
-  )
+function easeOut(t: number): number {
+  return 1 - (1 - t) * (1 - t)
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -81,22 +72,157 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath()
 }
 
+function drawBackground(ctx: CanvasRenderingContext2D, g: Geometry, n: number) {
+  ctx.fillStyle = BOARD_BG
+  roundRect(ctx, 0, 0, g.size, g.size, g.gap * 1.5)
+  ctx.fill()
+  ctx.fillStyle = EMPTY_BG
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const [x, y] = cellOrigin(g, r, c)
+      roundRect(ctx, x, y, g.cell, g.cell, g.cell * 0.1)
+      ctx.fill()
+    }
+  }
+}
+
+function drawTile(ctx: CanvasRenderingContext2D, g: Geometry, x: number, y: number, value: number, scale = 1) {
+  const color = COLORS[value] ?? SUPER
+  const size = g.cell * scale
+  const ox = x + (g.cell - size) / 2
+  const oy = y + (g.cell - size) / 2
+  ctx.fillStyle = color.bg
+  roundRect(ctx, ox, oy, size, size, size * 0.1)
+  ctx.fill()
+  const digits = String(value).length
+  const fontSize = size * (digits <= 2 ? 0.5 : digits === 3 ? 0.42 : 0.34)
+  ctx.fillStyle = color.fg
+  ctx.font = `700 ${fontSize}px system-ui, -apple-system, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(String(value), ox + size / 2, oy + size / 2 + fontSize * 0.05)
+}
+
+function drawStatic(ctx: CanvasRenderingContext2D, g: Geometry, board: Board) {
+  drawBackground(ctx, g, board.length)
+  board.forEach((row, r) =>
+    row.forEach((v, c) => {
+      if (v === 0) return
+      const [x, y] = cellOrigin(g, r, c)
+      drawTile(ctx, g, x, y, v)
+    }),
+  )
+}
+
+function drawAnimated(ctx: CanvasRenderingContext2D, g: Geometry, anim: Anim, now: number): boolean {
+  const elapsed = now - anim.startedAt
+  const n = anim.board.length
+  drawBackground(ctx, g, n)
+
+  if (elapsed < SLIDE_MS) {
+    const t = easeOut(elapsed / SLIDE_MS)
+    for (const m of anim.moves) {
+      const [fx, fy] = cellOrigin(g, m.from[0], m.from[1])
+      const [tx, ty] = cellOrigin(g, m.to[0], m.to[1])
+      drawTile(ctx, g, fx + (tx - fx) * t, fy + (ty - fy) * t, m.value)
+    }
+    return false
+  }
+
+  const q = Math.min((elapsed - SLIDE_MS) / POP_MS, 1)
+  const isMerged = (r: number, c: number) => anim.mergedAt.some(([mr, mc]) => mr === r && mc === c)
+  const isSpawned = (r: number, c: number) => anim.spawned?.[0] === r && anim.spawned?.[1] === c
+  anim.board.forEach((row, r) =>
+    row.forEach((v, c) => {
+      if (v === 0) return
+      const [x, y] = cellOrigin(g, r, c)
+      let scale = 1
+      if (isMerged(r, c)) scale = 1 + 0.18 * Math.sin(Math.PI * q)
+      else if (isSpawned(r, c)) scale = easeOut(q)
+      drawTile(ctx, g, x, y, v, scale)
+    }),
+  )
+  return q >= 1
+}
+
+function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  const dpr = window.devicePixelRatio || 1
+  const size = canvas.clientWidth
+  if (canvas.width !== Math.round(size * dpr)) {
+    canvas.width = Math.round(size * dpr)
+    canvas.height = Math.round(size * dpr)
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  return ctx
+}
+
 export function Game2048({ host }: { host: GameHost }) {
   const [state, setState] = useState<GameState>(() => newGame())
+  const stateRef = useRef(state)
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const animRef = useRef<Anim | null>(null)
+  const rafRef = useRef(0)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const reportedOver = useRef(false)
 
-  const play = useCallback((dir: Direction) => {
-    setState((prev) => step(prev, dir))
+  const render = useCallback(function render() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = setupCanvas(canvas)
+    if (!ctx) return
+    const g = geometry(canvas.clientWidth, stateRef.current.board.length)
+    const anim = animRef.current
+    if (!anim) {
+      drawStatic(ctx, g, stateRef.current.board)
+      return
+    }
+    const done = drawAnimated(ctx, g, anim, performance.now())
+    if (done) {
+      animRef.current = null
+      drawStatic(ctx, g, stateRef.current.board)
+    } else {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(render)
+    }
   }, [])
+
+  const play = useCallback(
+    (dir: Direction) => {
+      const res = stepWithTrace(stateRef.current, dir)
+      if (!res.moved) return
+      cancelAnimationFrame(rafRef.current)
+      const mergedAt = new Map<string, [number, number]>()
+      for (const m of res.moves) if (m.merged) mergedAt.set(m.to.join(','), m.to)
+      animRef.current = {
+        startedAt: performance.now(),
+        moves: res.moves,
+        mergedAt: [...mergedAt.values()],
+        spawned: res.spawned,
+        board: res.state.board,
+      }
+      stateRef.current = res.state
+      setState(res.state)
+      rafRef.current = requestAnimationFrame(render)
+    },
+    [render],
+  )
 
   const restart = useCallback(() => {
+    cancelAnimationFrame(rafRef.current)
+    animRef.current = null
     reportedOver.current = false
-    setState(newGame())
-  }, [])
+    const next = newGame()
+    stateRef.current = next
+    setState(next)
+    requestAnimationFrame(render)
+  }, [render])
 
-  // 점수/종료를 포털에 알린다.
   useEffect(() => {
     host.onScore(state.score)
   }, [host, state.score])
@@ -107,18 +233,18 @@ export function Game2048({ host }: { host: GameHost }) {
     }
   }, [host, state.over, state.score])
 
-  // 그리기: 상태 변경 및 리사이즈 때
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const render = () => draw(canvas, state.board)
     render()
-    const ro = new ResizeObserver(render)
+    const ro = new ResizeObserver(() => render())
     ro.observe(canvas)
-    return () => ro.disconnect()
-  }, [state.board])
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(rafRef.current)
+    }
+  }, [render])
 
-  // 키보드 입력
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const dir = KEY_DIRS[e.key]
@@ -130,7 +256,6 @@ export function Game2048({ host }: { host: GameHost }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [play])
 
-  // 터치 스와이프
   const onPointerDown = (e: React.PointerEvent) => {
     touchStart.current = { x: e.clientX, y: e.clientY }
   }
