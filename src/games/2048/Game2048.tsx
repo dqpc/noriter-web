@@ -37,10 +37,12 @@ const POP_MS = 120 // 합쳐진 타일이 튀는 시간, 새 타일이 커지는
 interface Anim {
   startedAt: number
   moves: TileMove[]
-  mergedAt: Array<[number, number]>
-  spawned: [number, number] | null
+  merged: Set<string>
+  spawned: string | null
   board: Board
 }
+
+const key = (r: number, c: number) => `${r},${c}`
 
 interface Geometry {
   size: number
@@ -103,23 +105,21 @@ function drawTile(ctx: CanvasRenderingContext2D, g: Geometry, x: number, y: numb
   ctx.fillText(String(value), ox + size / 2, oy + size / 2 + fontSize * 0.05)
 }
 
-function drawStatic(ctx: CanvasRenderingContext2D, g: Geometry, board: Board) {
+function drawBoard(ctx: CanvasRenderingContext2D, g: Geometry, board: Board, scaleAt?: (r: number, c: number) => number) {
   drawBackground(ctx, g, board.length)
   board.forEach((row, r) =>
     row.forEach((v, c) => {
       if (v === 0) return
       const [x, y] = cellOrigin(g, r, c)
-      drawTile(ctx, g, x, y, v)
+      drawTile(ctx, g, x, y, v, scaleAt ? scaleAt(r, c) : 1)
     }),
   )
 }
 
 function drawAnimated(ctx: CanvasRenderingContext2D, g: Geometry, anim: Anim, now: number): boolean {
   const elapsed = now - anim.startedAt
-  const n = anim.board.length
-  drawBackground(ctx, g, n)
-
   if (elapsed < SLIDE_MS) {
+    drawBackground(ctx, g, anim.board.length)
     const t = easeOut(elapsed / SLIDE_MS)
     for (const m of anim.moves) {
       const [fx, fy] = cellOrigin(g, m.from[0], m.from[1])
@@ -128,20 +128,13 @@ function drawAnimated(ctx: CanvasRenderingContext2D, g: Geometry, anim: Anim, no
     }
     return false
   }
-
   const q = Math.min((elapsed - SLIDE_MS) / POP_MS, 1)
-  const isMerged = (r: number, c: number) => anim.mergedAt.some(([mr, mc]) => mr === r && mc === c)
-  const isSpawned = (r: number, c: number) => anim.spawned?.[0] === r && anim.spawned?.[1] === c
-  anim.board.forEach((row, r) =>
-    row.forEach((v, c) => {
-      if (v === 0) return
-      const [x, y] = cellOrigin(g, r, c)
-      let scale = 1
-      if (isMerged(r, c)) scale = 1 + 0.18 * Math.sin(Math.PI * q)
-      else if (isSpawned(r, c)) scale = easeOut(q)
-      drawTile(ctx, g, x, y, v, scale)
-    }),
-  )
+  drawBoard(ctx, g, anim.board, (r, c) => {
+    const k = key(r, c)
+    if (anim.merged.has(k)) return 1 + 0.18 * Math.sin(Math.PI * q)
+    if (anim.spawned === k) return easeOut(q)
+    return 1
+  })
   return q >= 1
 }
 
@@ -159,17 +152,14 @@ function setupCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null
 }
 
 export function Game2048({ host }: { host: GameHost }) {
-  const [state, setState] = useState<GameState>(() => newGame())
-  const stateRef = useRef(state)
-  useEffect(() => {
-    stateRef.current = state
-  }, [state])
+  const stateRef = useRef<GameState>(newGame())
+  const [score, setScore] = useState(0)
+  const [over, setOver] = useState(false)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<Anim | null>(null)
   const rafRef = useRef(0)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
-  const reportedOver = useRef(false)
 
   const render = useCallback(function render() {
     const canvas = canvasRef.current
@@ -179,36 +169,34 @@ export function Game2048({ host }: { host: GameHost }) {
     const g = geometry(canvas.clientWidth, stateRef.current.board.length)
     const anim = animRef.current
     if (!anim) {
-      drawStatic(ctx, g, stateRef.current.board)
+      drawBoard(ctx, g, stateRef.current.board)
       return
     }
-    const done = drawAnimated(ctx, g, anim, performance.now())
-    if (done) {
+    if (drawAnimated(ctx, g, anim, performance.now())) {
       animRef.current = null
-      drawStatic(ctx, g, stateRef.current.board)
-    } else {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = requestAnimationFrame(render)
+      if (stateRef.current.over) setOver(true)
+      return
     }
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(render)
   }, [])
 
   const play = useCallback(
     (dir: Direction) => {
       const res = stepWithTrace(stateRef.current, dir)
       if (!res.moved) return
-      cancelAnimationFrame(rafRef.current)
-      const mergedAt = new Map<string, [number, number]>()
-      for (const m of res.moves) if (m.merged) mergedAt.set(m.to.join(','), m.to)
+      const merged = new Set<string>()
+      for (const m of res.moves) if (m.merged) merged.add(key(m.to[0], m.to[1]))
       animRef.current = {
         startedAt: performance.now(),
         moves: res.moves,
-        mergedAt: [...mergedAt.values()],
-        spawned: res.spawned,
+        merged,
+        spawned: res.spawned ? key(res.spawned[0], res.spawned[1]) : null,
         board: res.state.board,
       }
       stateRef.current = res.state
-      setState(res.state)
-      rafRef.current = requestAnimationFrame(render)
+      setScore(res.state.score)
+      render()
     },
     [render],
   )
@@ -216,22 +204,18 @@ export function Game2048({ host }: { host: GameHost }) {
   const restart = useCallback(() => {
     cancelAnimationFrame(rafRef.current)
     animRef.current = null
-    reportedOver.current = false
-    const next = newGame()
-    stateRef.current = next
-    setState(next)
-    requestAnimationFrame(render)
+    stateRef.current = newGame()
+    setScore(0)
+    setOver(false)
+    render()
   }, [render])
 
   useEffect(() => {
-    host.onScore(state.score)
-  }, [host, state.score])
+    host.onScore(score)
+  }, [host, score])
   useEffect(() => {
-    if (state.over && !reportedOver.current) {
-      reportedOver.current = true
-      host.onGameOver(state.score)
-    }
-  }, [host, state.over, state.score])
+    if (over) host.onGameOver(stateRef.current.score)
+  }, [host, over])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -248,7 +232,7 @@ export function Game2048({ host }: { host: GameHost }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const dir = KEY_DIRS[e.key]
-      if (!dir) return
+      if (!dir || e.repeat) return
       e.preventDefault()
       play(dir)
     }
@@ -275,7 +259,7 @@ export function Game2048({ host }: { host: GameHost }) {
       <div className="g2048-hud">
         <div className="g2048-score">
           <span className="label">SCORE</span>
-          <span className="value">{state.score}</span>
+          <span className="value">{score}</span>
         </div>
         <button type="button" className="btn" onClick={restart}>
           새 게임
@@ -290,10 +274,10 @@ export function Game2048({ host }: { host: GameHost }) {
           onPointerCancel={() => (touchStart.current = null)}
           aria-label="2048 보드"
         />
-        {state.over && (
+        {over && (
           <div className="g2048-overlay">
             <p>게임 오버</p>
-            <p className="g2048-final">{state.score}</p>
+            <p className="g2048-final">{score}</p>
             <button type="button" className="btn" onClick={restart}>
               다시 하기
             </button>

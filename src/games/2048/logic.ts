@@ -27,30 +27,26 @@ export function emptyCells(board: Board): Array<[number, number]> {
   return cells
 }
 
-export function spawnTile(board: Board, random: () => number = Math.random): Board {
+export function pickSpawn(
+  board: Board,
+  random: () => number = Math.random,
+): { cell: [number, number]; value: number } | null {
   const cells = emptyCells(board)
-  if (cells.length === 0) return board
-  const [r, c] = cells[Math.floor(random() * cells.length)]
+  if (cells.length === 0) return null
+  const cell = cells[Math.floor(random() * cells.length)]
+  return { cell, value: random() < 0.9 ? 2 : 4 }
+}
+
+export function spawnTile(board: Board, random: () => number = Math.random): Board {
+  const pick = pickSpawn(board, random)
+  if (!pick) return board
   const next = cloneBoard(board)
-  next[r][c] = random() < 0.9 ? 2 : 4
+  next[pick.cell[0]][pick.cell[1]] = pick.value
   return next
 }
 
 export function slideRow(row: number[]): { row: number[]; gained: number } {
-  const tiles = row.filter((v) => v !== 0)
-  const out: number[] = []
-  let gained = 0
-  for (let i = 0; i < tiles.length; i++) {
-    if (i + 1 < tiles.length && tiles[i] === tiles[i + 1]) {
-      const merged = tiles[i] * 2
-      out.push(merged)
-      gained += merged
-      i++
-    } else {
-      out.push(tiles[i])
-    }
-  }
-  while (out.length < row.length) out.push(0)
+  const { row: out, gained } = traceRow(row)
   return { row: out, gained }
 }
 
@@ -191,13 +187,10 @@ export function stepWithTrace(
   if (state.over) return { state, moved: false, moves: [], spawned: null }
   const res = moveWithTrace(state.board, dir)
   if (!res.moved) return { state, moved: false, moves: [], spawned: null }
-  const board = spawnTile(res.board, random)
-  let spawned: [number, number] | null = null
-  board.forEach((row, r) =>
-    row.forEach((v, c) => {
-      if (v !== 0 && res.board[r][c] === 0) spawned = [r, c]
-    }),
-  )
+  const pick = pickSpawn(res.board, random)!
+  const board = cloneBoard(res.board)
+  board[pick.cell[0]][pick.cell[1]] = pick.value
+  const spawned = pick.cell
   const score = state.score + res.gained
   return {
     state: {

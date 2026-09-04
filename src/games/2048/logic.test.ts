@@ -124,19 +124,31 @@ describe('traceRow / moveWithTrace', () => {
       { from: 3, to: 1, value: 4, merged: false },
     ])
   })
-  it('moveWithTrace 는 move 와 같은 보드를 내고 좌표를 방향에 맞게 매핑한다', () => {
+  it('moveWithTrace 는 방향에 맞게 보드와 좌표를 매핑한다', () => {
     const board: Board = [
       [0, 0, 0, 2],
       [0, 0, 0, 0],
       [0, 0, 0, 2],
-      [0, 0, 0, 0],
+      [4, 0, 0, 0],
     ]
-    const r = moveWithTrace(board, 'down')
-    expect(r.board).toEqual(move(board, 'down').board)
-    expect(r.board[3][3]).toBe(4)
-    expect(r.moves).toHaveLength(2)
-    expect(r.moves.every((m) => m.to[0] === 3 && m.to[1] === 3 && m.merged)).toBe(true)
-    expect(r.moves.map((m) => m.from)).toEqual([[2, 3], [0, 3]])
+    const down = moveWithTrace(board, 'down')
+    expect(down.board).toEqual([
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [4, 0, 0, 4],
+    ])
+    expect(down.moves).toContainEqual({ from: [2, 3], to: [3, 3], value: 2, merged: true })
+    expect(down.moves).toContainEqual({ from: [0, 3], to: [3, 3], value: 2, merged: true })
+    expect(down.moves).toContainEqual({ from: [3, 0], to: [3, 0], value: 4, merged: false })
+
+    const right = moveWithTrace(board, 'right')
+    expect(right.board[3]).toEqual([0, 0, 0, 4])
+    expect(right.moves).toContainEqual({ from: [3, 0], to: [3, 3], value: 4, merged: false })
+
+    const up = moveWithTrace(board, 'up')
+    expect(up.board.map((r) => r[3])).toEqual([4, 0, 0, 0])
+    expect(up.moves).toContainEqual({ from: [2, 3], to: [0, 3], value: 2, merged: true })
   })
   it('stepWithTrace 는 새 타일 위치를 알려 준다', () => {
     const state = { board: emptyBoard(), score: 0, over: false, won: false }
@@ -145,7 +157,7 @@ describe('traceRow / moveWithTrace', () => {
     expect(r.moved).toBe(true)
     expect(r.state.board[0][0]).toBe(2)
     expect(r.spawned).not.toBeNull()
-    const [sr, sc] = r.spawned!
+    const [sr, sc] = r.spawned as [number, number]
     expect(r.state.board[sr][sc]).toBe(2)
     expect(sr === 0 && sc === 0).toBe(false)
   })
