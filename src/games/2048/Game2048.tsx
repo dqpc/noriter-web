@@ -187,6 +187,7 @@ export function Game2048({ host }: { host: GameHost }) {
       animRef.current = null
       drawStatic(ctx, g, stateRef.current.board)
     } else {
+      cancelAnimationFrame(rafRef.current)
       rafRef.current = requestAnimationFrame(render)
     }
   }, [])
