@@ -1,0 +1,11 @@
+{
+  "name": "noriter",
+  "short_name": "noriter",
+  "description": "가볍게 한판 즐기는 웹 놀이터",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1c1917",
+  "theme_color": "#1c1917",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
