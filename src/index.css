@@ -220,3 +220,25 @@ body {
   font-size: 20px;
   color: var(--muted);
 }
+
+.btn-ghost {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.g2048-hud-actions {
+  display: flex;
+  gap: 8px;
+}
+.g2048-targets {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.g2048-targets .btn {
+  min-width: 72px;
+}

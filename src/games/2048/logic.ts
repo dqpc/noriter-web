@@ -168,6 +168,7 @@ export interface GameState {
   target: number
 }
 
+export const TARGETS = [512, 1024, 2048] as const
 export const DEFAULT_TARGET = 2048
 
 export function newGame(random: () => number = Math.random, target = DEFAULT_TARGET): GameState {
