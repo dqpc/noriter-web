@@ -210,14 +210,25 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
   }, [render])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const held = new Set<string>()
+    const onDown = (e: KeyboardEvent) => {
       const dir = KEY_DIRS[e.key]
-      if (!dir || e.repeat) return
+      if (!dir) return
       e.preventDefault()
+      if (e.repeat || held.has(e.key)) return
+      held.add(e.key)
       play(dir)
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    const onUp = (e: KeyboardEvent) => held.delete(e.key)
+    const onBlur = () => held.clear()
+    window.addEventListener('keydown', onDown)
+    window.addEventListener('keyup', onUp)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onDown)
+      window.removeEventListener('keyup', onUp)
+      window.removeEventListener('blur', onBlur)
+    }
   }, [play])
 
   const onPointerDown = (e: React.PointerEvent) => {
