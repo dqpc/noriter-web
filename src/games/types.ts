@@ -45,4 +45,6 @@ export interface GameDefinition {
   Preview?: ComponentType<PreviewProps>
   turnBased?: boolean
   Turn?: ComponentType<TurnProps>
+  /** 판이 오기 전(카운트다운)에 보여줄 빈 판 */
+  idleView?: (playerIds: string[]) => Record<string, unknown>
 }
