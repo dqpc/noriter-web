@@ -894,6 +894,20 @@ button.room-me {
   }
 }
 
+@media (min-width: 720px) {
+  .room-live.turn {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .room-live.turn .room-play {
+    max-width: 680px;
+  }
+}
+@media (min-width: 1040px) {
+  .room-live.turn {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+}
+
 /* Desktop: 게임판을 더 크게 */
 @media (min-width: 720px) {
   .room-live .room-play {
