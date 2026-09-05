@@ -56,6 +56,7 @@ export type ClientMessage =
   | { type: 'score'; score: number }
   | { type: 'finish'; score: number }
   | { type: 'chat'; text: string }
+  | { type: 'character'; character: string }
 
 export async function createRoom(gameId: string): Promise<RoomSnapshot> {
   const res = await fetch(`${API_URL}/api/rooms`, {

@@ -1,8 +1,12 @@
 import { getPreference, setPreference } from '../lib/storage'
-import { DEFAULT_CHARACTER, findCharacter } from './zodiac'
+import { ZODIAC, findCharacter } from './zodiac'
 
 export function getMyCharacter(): string {
-  return findCharacter(getPreference('me', 'character') ?? DEFAULT_CHARACTER).id
+  const saved = getPreference('me', 'character')
+  if (saved && ZODIAC.some((c) => c.id === saved)) return saved
+  const random = ZODIAC[Math.floor(Math.random() * ZODIAC.length)].id
+  setPreference('me', 'character', random)
+  return random
 }
 
 export function setMyCharacter(id: string): void {
