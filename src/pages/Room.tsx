@@ -12,7 +12,7 @@ import {
   type RoomSnapshot,
   type RoomStatus,
 } from '../lib/roomClient'
-import { getPlayerToken, getPreference, setPreference } from '../lib/storage'
+import { forgetRoom, getPlayerToken, getPreference, rememberRoom, setPreference } from '../lib/storage'
 import { formatDuration } from '../lib/time'
 
 function useNow(active: boolean): number {
@@ -62,6 +62,7 @@ export function Room() {
     (name: string) => {
       if (socketRef.current) return
       setPreference('room', 'nickname', name)
+      if (room) rememberRoom(roomId, room.gameId)
       const socket = new RoomSocket(roomId, {
         onOpen: () => {
           setConnection('open')
@@ -90,12 +91,15 @@ export function Room() {
             setChat(m.messages)
           } else if (m.type === 'error') setError(m.message)
         },
-        onClose: () => setConnection('closed'),
+        onClose: () => {
+          forgetRoom(roomId)
+          setConnection('closed')
+        },
       })
       socketRef.current = socket
       setJoined(true)
     },
-    [roomId, character, playerToken],
+    [roomId, character, playerToken, room],
   )
 
   const join = (e: React.FormEvent) => {

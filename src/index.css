@@ -122,6 +122,37 @@ body {
   color: var(--accent);
   font-size: 13px;
 }
+.game-list li:has(.game-resume) .game-card {
+  border-radius: 14px 14px 0 0;
+}
+.game-resume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.game-resume:active {
+  background: rgba(245, 158, 11, 0.25);
+}
+.game-resume-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: yut-auto-pulse 1.2s ease-in-out infinite;
+}
+.game-resume-cta {
+  margin-left: auto;
+  font-weight: 800;
+}
 
 .btn {
   appearance: none;
