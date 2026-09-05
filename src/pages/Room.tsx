@@ -227,7 +227,7 @@ export function Room() {
 
       {inGame && game && (
         <div className="room-live fade-in">
-          {(room.status === 'PLAYING' || room.status === 'FINISHED') && (
+          {inGame && (
             <div className="room-live-chat">
               <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
             </div>
