@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameHost, GameOptions } from '../types'
-import { newStairs, press, tick, type Dir, type StairsState } from './logic'
+import { newStairs, press, tick, type Action, type StairsState } from './logic'
+import { ClimbIcon, TurnIcon } from './icons'
 
 import { drawWith } from './draw'
 
 function draw(canvas: HTMLCanvasElement, state: StairsState) {
-  drawWith(canvas, state.steps, state.energy, state.rules.maxEnergy, state.dirAt, state.itemAt)
+  drawWith(canvas, state.steps, state.facing, state.energy, state.rules.maxEnergy, state.dirAt, state.itemAt)
 }
 
 function readSeed(options?: GameOptions): number {
@@ -34,10 +35,10 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   }, [])
 
   const input = useCallback(
-    (dir: Dir) => {
+    (action: Action) => {
       const before = stateRef.current
       if (before.ended) return
-      const after = press(before, dir, performance.now())
+      const after = press(before, action, performance.now())
       stateRef.current = after
       if (after.steps !== before.steps) setSteps(after.steps)
       if (after.ended) {
@@ -86,8 +87,8 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return
-      if (e.key === 'ArrowLeft' || e.key === 'a') input('L')
-      else if (e.key === 'ArrowRight' || e.key === 'd') input('R')
+      if (e.key === 'Shift') input('TURN')
+      else if (e.key === 'ArrowUp') input('CLIMB')
       else return
       e.preventDefault()
     }
@@ -112,14 +113,17 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
         )}
       </div>
       <div className="stairs-pads">
-        <button type="button" className="stairs-pad" onPointerDown={() => input('L')} aria-label="왼쪽">
-          ◀
+        <button type="button" className="stairs-pad" onPointerDown={() => input('TURN')} aria-label="방향 전환">
+          <TurnIcon />
         </button>
-        <button type="button" className="stairs-pad" onPointerDown={() => input('R')} aria-label="오른쪽">
-          ▶
+        <button type="button" className="stairs-pad" onPointerDown={() => input('CLIMB')} aria-label="오르기">
+          <ClimbIcon />
         </button>
       </div>
-      <p className="g2048-help">다음 계단이 있는 쪽을 누르세요. 번개를 밟으면 에너지가 가득 찹니다.</p>
+      <p className="g2048-help">
+        보는 방향에 계단이 있으면 오르기, 반대쪽이면 방향 전환. 키보드는 Shift 와 ↑. 번개를 밟으면 에너지가 가득
+        찹니다.
+      </p>
     </div>
   )
 }
