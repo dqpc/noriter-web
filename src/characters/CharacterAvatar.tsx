@@ -1,6 +1,14 @@
 import { characterSvg, findCharacter } from './zodiac'
 
-export function CharacterAvatar({ id, size = 40, facing = 'R' }: { id: string | null | undefined; size?: number; facing?: 'L' | 'R' }) {
+export function CharacterAvatar({
+  id,
+  size = 40,
+  facing = 'R',
+}: {
+  id: string | null | undefined
+  size?: number
+  facing?: 'L' | 'R'
+}) {
   const c = findCharacter(id)
   return (
     <span

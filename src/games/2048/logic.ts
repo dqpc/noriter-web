@@ -187,11 +187,7 @@ export interface StepResult {
   spawned: [number, number] | null
 }
 
-export function stepWithTrace(
-  state: GameState,
-  dir: Direction,
-  random: () => number = Math.random,
-): StepResult {
+export function stepWithTrace(state: GameState, dir: Direction, random: () => number = Math.random): StepResult {
   if (isEnded(state)) return { state, moved: false, moves: [], spawned: null }
   const res = moveWithTrace(state.board, dir)
   if (!res.moved) return { state, moved: false, moves: [], spawned: null }

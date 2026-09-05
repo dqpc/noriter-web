@@ -132,7 +132,12 @@ function drawTile(ctx: CanvasRenderingContext2D, g: Geometry, x: number, y: numb
   ctx.fillText(String(value), ox + size / 2, oy + size / 2 + fontSize * 0.05)
 }
 
-function drawBoard(ctx: CanvasRenderingContext2D, g: Geometry, board: Board, scaleAt?: (r: number, c: number) => number) {
+function drawBoard(
+  ctx: CanvasRenderingContext2D,
+  g: Geometry,
+  board: Board,
+  scaleAt?: (r: number, c: number) => number,
+) {
   drawBackground(ctx, g, board.length)
   board.forEach((row, r) =>
     row.forEach((v, c) => {
@@ -403,7 +408,7 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
           </div>
         )}
       </div>
-      <p className="g2048-help">스와이프 또는 방향키로 타일을 합쳐 {target ?? "목표"} 를 만드세요.</p>
+      <p className="g2048-help">스와이프 또는 방향키로 타일을 합쳐 {target ?? '목표'} 를 만드세요.</p>
     </div>
   )
 }

@@ -78,10 +78,7 @@ export async function fetchRoom(roomId: string): Promise<RoomSnapshot | null> {
 export class RoomSocket {
   private ws: WebSocket
 
-  constructor(
-    roomId: string,
-    handlers: { onMessage: (m: ServerMessage) => void; onClose: () => void },
-  ) {
+  constructor(roomId: string, handlers: { onMessage: (m: ServerMessage) => void; onClose: () => void }) {
     this.ws = new WebSocket(`${WS_URL}/ws/rooms/${roomId}`)
     this.ws.onmessage = (e) => handlers.onMessage(JSON.parse(e.data) as ServerMessage)
     this.ws.onclose = handlers.onClose
