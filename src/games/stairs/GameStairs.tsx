@@ -54,6 +54,13 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
       const after = press(before, action, performance.now())
       stateRef.current = after
       if (after.steps !== before.steps) setSteps(after.steps)
+      host.onState?.({
+        steps: after.steps,
+        facing: after.facing,
+        energy: after.energy,
+        ended: after.ended,
+        fell: after.fell,
+      })
       if (after.ended) {
         setEnded({ fell: after.fell })
         const canvas = canvasRef.current
@@ -63,7 +70,7 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
         rafRef.current = requestAnimationFrame(frame)
       }
     },
-    [frame, options],
+    [frame, options, host],
   )
 
   const restart = useCallback(() => {
