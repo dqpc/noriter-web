@@ -33,7 +33,7 @@ export function Room() {
   const [nickname, setNickname] = useState(() => getPreference('room', 'nickname') ?? '')
   const [joined, setJoined] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [disconnected, setDisconnected] = useState(false)
+  const [connection, setConnection] = useState<'connecting' | 'open' | 'reconnecting' | 'closed'>('connecting')
   const [chat, setChat] = useState<ChatMessage[]>([])
   const [character, setCharacter] = useState(getMyCharacter)
   const [picking, setPicking] = useState(false)
@@ -57,16 +57,20 @@ export function Room() {
     if (!name) return
     setPreference('room', 'nickname', name)
     const socket = new RoomSocket(roomId, {
+      onOpen: () => {
+        setConnection('open')
+        socket.send({ type: 'join', nickname: name, character })
+      },
+      onReconnecting: () => setConnection('reconnecting'),
       onMessage: (m) => {
         if (m.type === 'hello') setPlayerId(m.playerId)
         else if (m.type === 'room') setRoom(m.room)
         else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
         else if (m.type === 'chatHistory') setChat(m.messages)
-        else setError(m.message)
+        else if (m.type === 'error') setError(m.message)
       },
-      onClose: () => setDisconnected(true),
+      onClose: () => setConnection('closed'),
     })
-    socket.send({ type: 'join', nickname: name, character })
     socketRef.current = socket
     setJoined(true)
   }
@@ -169,7 +173,8 @@ export function Room() {
       </div>
       {picking && <CharacterPicker value={character} onChange={changeCharacter} onClose={() => setPicking(false)} />}
       {error && <p className="room-error">{error}</p>}
-      {disconnected && <p className="room-error">연결이 끊어졌습니다. 새로고침해 주세요.</p>}
+      {connection === 'reconnecting' && <p className="room-hint">연결이 끊겨 다시 붙는 중…</p>}
+      {connection === 'closed' && <p className="room-error">방이 없어졌습니다. 목록으로 돌아가 주세요.</p>}
 
       {room.status === 'WAITING' && (
         <div className="room-layout">

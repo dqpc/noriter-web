@@ -48,6 +48,7 @@ export type ServerMessage =
   | { type: 'error'; message: string }
   | { type: 'chat'; message: ChatMessage }
   | { type: 'chatHistory'; messages: ChatMessage[] }
+  | { type: 'pong' }
 
 export type ClientMessage =
   | { type: 'join'; nickname: string; character: string }
@@ -57,6 +58,7 @@ export type ClientMessage =
   | { type: 'finish'; score: number }
   | { type: 'chat'; text: string }
   | { type: 'character'; character: string }
+  | { type: 'ping' }
 
 export async function createRoom(gameId: string): Promise<RoomSnapshot> {
   const res = await fetch(`${API_URL}/api/rooms`, {
@@ -75,24 +77,59 @@ export async function fetchRoom(roomId: string): Promise<RoomSnapshot | null> {
   return res.json()
 }
 
-export class RoomSocket {
-  private ws: WebSocket
+export interface RoomSocketHandlers {
+  onMessage: (m: ServerMessage) => void
+  onOpen: () => void
+  onReconnecting: () => void
+  onClose: () => void
+}
 
-  constructor(roomId: string, handlers: { onMessage: (m: ServerMessage) => void; onClose: () => void }) {
-    this.ws = new WebSocket(`${WS_URL}/ws/rooms/${roomId}`)
-    this.ws.onmessage = (e) => handlers.onMessage(JSON.parse(e.data) as ServerMessage)
-    this.ws.onclose = handlers.onClose
-    this.ws.onerror = handlers.onClose
+const HEARTBEAT_MS = 30_000
+const RECONNECT_MS = 1_500
+
+export class RoomSocket {
+  private ws!: WebSocket
+  private heartbeat = 0
+  private closed = false
+  private readonly url: string
+  private readonly handlers: RoomSocketHandlers
+
+  constructor(roomId: string, handlers: RoomSocketHandlers) {
+    this.url = `${WS_URL}/ws/rooms/${roomId}`
+    this.handlers = handlers
+    this.connect()
+  }
+
+  private connect(): void {
+    this.ws = new WebSocket(this.url)
+    this.ws.onopen = () => {
+      window.clearInterval(this.heartbeat)
+      this.heartbeat = window.setInterval(() => this.send({ type: 'ping' }), HEARTBEAT_MS)
+      this.handlers.onOpen()
+    }
+    this.ws.onmessage = (e) => {
+      const m = JSON.parse(e.data) as ServerMessage
+      if (m.type !== 'pong') this.handlers.onMessage(m)
+    }
+    this.ws.onclose = (e) => {
+      window.clearInterval(this.heartbeat)
+      if (this.closed) return
+      if (e.code === 1008) {
+        this.handlers.onClose()
+        return
+      }
+      this.handlers.onReconnecting()
+      window.setTimeout(() => !this.closed && this.connect(), RECONNECT_MS)
+    }
   }
 
   send(msg: ClientMessage): void {
     if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg))
-    else this.ws.addEventListener('open', () => this.ws.send(JSON.stringify(msg)), { once: true })
   }
 
   close(): void {
-    this.ws.onclose = null
-    this.ws.onerror = null
+    this.closed = true
+    window.clearInterval(this.heartbeat)
     this.ws.close()
   }
 }
