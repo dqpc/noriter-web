@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { CharacterAvatar, getMyCharacter } from '../characters'
 import type { GameHost } from '../games/types'
 import { findGame } from '../games/registry'
 import {
@@ -63,7 +64,7 @@ export function Room() {
       },
       onClose: () => setDisconnected(true),
     })
-    socket.send({ type: 'join', nickname: name })
+    socket.send({ type: 'join', nickname: name, character: getMyCharacter() })
     socketRef.current = socket
     setJoined(true)
   }
@@ -144,7 +145,9 @@ export function Room() {
           ←
         </Link>
         <span className="play-title">{room.game.name}</span>
-        <span className="play-best">{me?.nickname ?? nickname}</span>
+        <span className="play-best room-me">
+          <CharacterAvatar id={me?.character ?? getMyCharacter()} size={28} /> {me?.nickname ?? nickname}
+        </span>
       </div>
       {error && <p className="room-error">{error}</p>}
       {disconnected && <p className="room-error">연결이 끊어졌습니다. 새로고침해 주세요.</p>}
@@ -174,7 +177,7 @@ export function Room() {
                 ? '종료'
                 : ''}
           </div>
-          <game.Component host={host} options={{ ...room.options, seed: room.seed }} />
+          <game.Component host={host} options={{ ...room.options, seed: room.seed, character: me?.character ?? getMyCharacter() }} />
           <Scoreboard players={room.players} me={playerId} finished={room.status === 'FINISHED'} />
           {room.status === 'FINISHED' && (
             <div className="room-actions">
@@ -250,7 +253,8 @@ function Lobby({
 
       <ul className="room-players">
         {room.players.map((p) => (
-          <li key={p.id}>
+          <li key={p.id} className="room-player">
+            <CharacterAvatar id={p.character} size={32} />
             {p.nickname}
             {p.id === room.hostId && <span className="room-host-badge">방장</span>}
           </li>
@@ -331,7 +335,7 @@ function Scoreboard({ players, me, finished }: { players: PlayerSnapshot[]; me: 
         <li key={p.id} className={p.id === me ? 'me' : ''}>
           <span className="room-rank">{finished && p.rank ? `${p.rank}등` : `${i + 1}`}</span>
           <span className="room-name">
-            {p.nickname}
+            <CharacterAvatar id={p.character} size={24} /> {p.nickname}
             {p.finished && !finished && <span className="room-done"> 완료</span>}
           </span>
           <span className="room-score">{p.score}</span>

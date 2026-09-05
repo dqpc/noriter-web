@@ -1,3 +1,4 @@
+import { getCharacterImage } from '../../characters'
 import type { Dir } from './logic'
 
 export interface StairsView {
@@ -70,6 +71,7 @@ export function drawWith(
   dirAt: (i: number) => Dir,
   itemAt: (i: number) => boolean = () => false,
   shown: number = steps,
+  character = 'rabbit',
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -113,27 +115,28 @@ export function drawWith(
 
   const hx = camX + heroX
   const hy = camY - heroLift
-  if (shown < steps) {
-    for (let k = 1; k <= 3; k++) {
-      const [gx, gl] = posAt(Math.max(0, shown - k * 0.6))
-      ctx.globalAlpha = 0.35 - k * 0.1
+  const img = getCharacterImage(character, facing)
+  const size = 30
+  const frac = shown - Math.floor(shown)
+  const hop = Math.sin(Math.min(1, frac) * Math.PI) * 6
+  const drawHero = (x: number, y: number, alpha: number) => {
+    ctx.globalAlpha = alpha
+    if (img.complete && img.naturalWidth > 0) ctx.drawImage(img, x - size / 2, y - size - 2, size, size)
+    else {
       ctx.fillStyle = COLORS.hero
       ctx.beginPath()
-      ctx.arc(camX + gx, camY - gl - 14, 9, 0, Math.PI * 2)
+      ctx.arc(x, y - 14, 9, 0, Math.PI * 2)
       ctx.fill()
     }
     ctx.globalAlpha = 1
   }
-  ctx.fillStyle = COLORS.hero
-  ctx.beginPath()
-  ctx.arc(hx, hy - 14, 9, 0, Math.PI * 2)
-  ctx.fill()
-  roundRect(ctx, hx - 7, hy - 6, 14, 6, 3)
-  ctx.fill()
-  ctx.fillStyle = COLORS.sky
-  ctx.beginPath()
-  ctx.arc(hx + (facing === 'L' ? -4 : 4), hy - 15, 2.2, 0, Math.PI * 2)
-  ctx.fill()
+  if (shown < steps) {
+    for (let k = 3; k >= 1; k--) {
+      const [gx, gl] = posAt(Math.max(0, shown - k * 0.6))
+      drawHero(camX + gx, camY - gl, 0.35 - k * 0.1)
+    }
+  }
+  drawHero(hx, hy - hop, 1)
 
   const ratio = Math.max(0, Math.min(1, energy / maxEnergy))
   ctx.fillStyle = COLORS.energyBg

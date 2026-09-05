@@ -3,9 +3,10 @@ import type { GameHost, GameOptions } from '../types'
 import { displaySteps, newStairs, press, tick, type Action, type StairsState } from './logic'
 import { ClimbIcon, TurnIcon } from './icons'
 
+import { getMyCharacter } from '../../characters'
 import { drawWith } from './draw'
 
-function draw(canvas: HTMLCanvasElement, state: StairsState) {
+function draw(canvas: HTMLCanvasElement, state: StairsState, options?: GameOptions) {
   drawWith(
     canvas,
     state.steps,
@@ -15,6 +16,7 @@ function draw(canvas: HTMLCanvasElement, state: StairsState) {
     state.dirAt,
     state.itemAt,
     displaySteps(state, performance.now()),
+    typeof options?.character === 'string' ? options.character : getMyCharacter(),
   )
 }
 
@@ -38,10 +40,10 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
     const wasEnded = stateRef.current.ended
     stateRef.current = s
     const canvas = canvasRef.current
-    if (canvas) draw(canvas, s)
+    if (canvas) draw(canvas, s, options)
     if (s.ended && !wasEnded) setEnded({ fell: s.fell })
     if (!s.ended) rafRef.current = requestAnimationFrame(frame)
-  }, [])
+  }, [options])
 
   const input = useCallback(
     (action: Action) => {
@@ -53,13 +55,13 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
       if (after.ended) {
         setEnded({ fell: after.fell })
         const canvas = canvasRef.current
-        if (canvas) draw(canvas, after)
+        if (canvas) draw(canvas, after, options)
       } else if (before.startedAt === null) {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = requestAnimationFrame(frame)
       }
     },
-    [frame],
+    [frame, options],
   )
 
   const restart = useCallback(() => {
@@ -68,7 +70,7 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
     setSteps(0)
     setEnded(null)
     const canvas = canvasRef.current
-    if (canvas) draw(canvas, stateRef.current)
+    if (canvas) draw(canvas, stateRef.current, options)
   }, [options, speed])
 
   useEffect(() => {
@@ -84,14 +86,14 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    draw(canvas, stateRef.current)
-    const ro = new ResizeObserver(() => draw(canvas, stateRef.current))
+    draw(canvas, stateRef.current, options)
+    const ro = new ResizeObserver(() => draw(canvas, stateRef.current, options))
     ro.observe(canvas)
     return () => {
       ro.disconnect()
       cancelAnimationFrame(rafRef.current)
     }
-  }, [])
+  }, [options])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

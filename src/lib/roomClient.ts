@@ -6,6 +6,7 @@ export type OptionValue = string | number | boolean
 export interface PlayerSnapshot {
   id: string
   nickname: string
+  character: string | null
   score: number
   finished: boolean
   rank: number | null
@@ -49,7 +50,7 @@ export type ServerMessage =
   | { type: 'chatHistory'; messages: ChatMessage[] }
 
 export type ClientMessage =
-  | { type: 'join'; nickname: string }
+  | { type: 'join'; nickname: string; character: string }
   | { type: 'settings'; maxPlayers?: number; options?: Record<string, OptionValue> }
   | { type: 'start' }
   | { type: 'score'; score: number }
