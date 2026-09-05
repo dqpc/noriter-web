@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makePattern, newStairs, press, tick } from './logic'
+import { ITEM_MIN_STEP, makeItems, makePattern, newStairs, press, tick } from './logic'
 
 describe('stairs', () => {
   it('같은 seed 는 같은 계단', () => {
@@ -26,6 +26,22 @@ describe('stairs', () => {
     expect(later.ended).toBe(true)
     expect(later.fell).toBe(false)
     expect(later.energy).toBe(0)
+  })
+  it('번개 계단에 올라서면 에너지가 가득 찬다', () => {
+    const items = makeItems(11)
+    expect(items(0)).toBe(false)
+    for (let i = 1; i < ITEM_MIN_STEP; i++) expect(items(i)).toBe(false)
+    let first = ITEM_MIN_STEP
+    while (!items(first)) first++
+    let s = newStairs(11)
+    for (let i = 1; i < first; i++) s = press(s, s.dirAt(i), i * 10)
+    const rate = s.rules.drainPerSec * (1 + s.rules.drainGrowthPerStep * s.steps)
+    const at = (first - 1) * 10 + ((s.energy * 0.6) / rate) * 1000
+    s = tick(s, at)
+    expect(s.ended).toBe(false)
+    expect(s.energy).toBeLessThan(s.rules.maxEnergy * 0.5)
+    s = press(s, s.dirAt(first), at)
+    expect(s.energy).toBe(s.rules.maxEnergy)
   })
   it('에너지는 최대치를 넘지 않는다', () => {
     let s = newStairs(3)

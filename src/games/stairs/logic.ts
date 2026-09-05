@@ -15,6 +15,9 @@ export const SPEEDS: Record<string, StairsRules> = {
 }
 
 export const DEFAULT_SPEED = 'normal'
+export const ITEM_MIN_STEP = 5
+export const ITEM_CHANCE = 0.08
+const ITEM_SEED_MIX = 0x9e3779b9
 
 export function rulesFor(speed: string | undefined): StairsRules {
   return SPEEDS[speed ?? DEFAULT_SPEED] ?? SPEEDS[DEFAULT_SPEED]
@@ -29,6 +32,7 @@ export interface StairsState {
   fell: boolean
   rules: StairsRules
   dirAt: (i: number) => Dir
+  itemAt: (i: number) => boolean
 }
 
 export function makePattern(seed: number): (i: number) => Dir {
@@ -36,6 +40,15 @@ export function makePattern(seed: number): (i: number) => Dir {
   const cache: Dir[] = ['R']
   return (i: number) => {
     while (cache.length <= i) cache.push(rng() < 0.5 ? 'L' : 'R')
+    return cache[i]
+  }
+}
+
+export function makeItems(seed: number): (i: number) => boolean {
+  const rng = mulberry32((seed ^ ITEM_SEED_MIX) >>> 0)
+  const cache: boolean[] = [false]
+  return (i: number) => {
+    while (cache.length <= i) cache.push(cache.length >= ITEM_MIN_STEP && rng() < ITEM_CHANCE)
     return cache[i]
   }
 }
@@ -51,6 +64,7 @@ export function newStairs(seed: number, speed?: string, now = 0): StairsState {
     fell: false,
     rules,
     dirAt: makePattern(seed),
+    itemAt: makeItems(seed),
   }
 }
 
@@ -71,9 +85,10 @@ export function press(state: StairsState, dir: Dir, now: number): StairsState {
   const s = state.startedAt === null ? { ...state, startedAt: now, updatedAt: now } : tick(state, now)
   if (s.ended) return s
   if (s.dirAt(s.steps + 1) !== dir) return { ...s, ended: true, fell: true }
+  const next = s.steps + 1
   return {
     ...s,
-    steps: s.steps + 1,
-    energy: Math.min(s.rules.maxEnergy, s.energy + s.rules.gainPerStep),
+    steps: next,
+    energy: s.itemAt(next) ? s.rules.maxEnergy : Math.min(s.rules.maxEnergy, s.energy + s.rules.gainPerStep),
   }
 }
