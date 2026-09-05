@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   BOOST_COOLDOWN_MS,
-  BOOST_COST,
   BOOST_STEPS,
   BOOST_WINDOW_MS,
   ITEM_MIN_STEP,
@@ -76,11 +75,7 @@ describe('stairs', () => {
     expect(s.boost?.from).toBe(before.steps)
     expect(displaySteps(s, t + BOOST_WINDOW_MS)).toBe(before.steps)
     expect(displaySteps(s, t + BOOST_WINDOW_MS + 1000)).toBe(s.steps)
-    const noItem = [1, 2, 3, 4].every((k) => !s.itemAt(before.steps + k))
-    if (noItem) {
-      expect(s.energy).toBeLessThanOrEqual(before.energy - BOOST_COST)
-      expect(s.energy).toBeGreaterThan(before.energy - BOOST_COST - 5)
-    }
+    expect(s.energy).toBeGreaterThanOrEqual(before.energy)
 
     s = press(s, 'TURN', t + 500)
     const again = press(s, 'CLIMB', t + 520)

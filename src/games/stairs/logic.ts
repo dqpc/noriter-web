@@ -18,8 +18,6 @@ export const SPEEDS: Record<string, StairsRules> = {
 export const DEFAULT_SPEED = 'normal'
 export const BOOST_WINDOW_MS = 120
 export const BOOST_STEPS = 4
-export const BOOST_COST = 15
-export const BOOST_MIN_ENERGY = 25
 export const BOOST_COOLDOWN_MS = 2000
 export const BOOST_DURATION_MS = 240
 export const ITEM_MIN_STEP = 5
@@ -121,7 +119,6 @@ function canBoost(s: StairsState, now: number): boolean {
   return (
     s.lastTurnAt !== null &&
     now - s.lastTurnAt <= BOOST_WINDOW_MS &&
-    s.energy >= BOOST_MIN_ENERGY &&
     (s.lastBoostAt === null || now - s.lastBoostAt >= BOOST_COOLDOWN_MS)
   )
 }
@@ -129,7 +126,7 @@ function canBoost(s: StairsState, now: number): boolean {
 function boost(s: StairsState, now: number): StairsState {
   const from = s.steps
   const to = from + BOOST_STEPS
-  let energy = s.energy - BOOST_COST
+  let energy = Math.min(s.rules.maxEnergy, s.energy + s.rules.gainPerStep * BOOST_STEPS)
   for (let i = from + 1; i <= to; i++) if (s.itemAt(i)) energy = s.rules.maxEnergy
   return {
     ...s,
