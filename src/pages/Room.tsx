@@ -228,7 +228,12 @@ export function Room() {
       )}
 
       {(room.status === 'PLAYING' || room.status === 'FINISHED') && game && (
-        <div className={room.status === 'FINISHED' ? 'room-layout' : ''}>
+        <div className={room.status === 'FINISHED' ? 'room-layout' : 'room-live'}>
+          {room.status === 'PLAYING' && (
+            <div className="room-live-chat">
+              <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
+            </div>
+          )}
           <div className="room-play">
             <div className="room-timer">
               {room.status === 'PLAYING' && room.endAt
@@ -259,33 +264,6 @@ export function Room() {
                 />
               )
             )}
-            {room.status === 'PLAYING' && otherPlayers.length > 0 && (
-              <div className="room-others">
-                {otherPlayers.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={p.id === watchTarget?.id && spectating ? 'room-other selected' : 'room-other'}
-                    onClick={() => spectating && !p.finished && setWatching(p.id)}
-                  >
-                    <span className="room-other-head">
-                      <CharacterAvatar id={p.character} size={18} /> {p.nickname}
-                      <b>{p.score}</b>
-                      {p.finished && <span className="room-done"> 완료</span>}
-                    </span>
-                    {others[p.id] ? (
-                      <game.Preview
-                        state={others[p.id]}
-                        options={{ ...room.options, seed: room.seed }}
-                        character={p.character}
-                      />
-                    ) : (
-                      <span className="room-other-empty">대기 중</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
             {room.status === 'FINISHED' && (
               <>
                 <Scoreboard players={room.players} me={playerId} finished />
@@ -305,6 +283,33 @@ export function Room() {
             )}
             {room.status === 'PLAYING' && <Scoreboard players={room.players} me={playerId} finished={false} />}
           </div>
+          {room.status === 'PLAYING' && otherPlayers.length > 0 && (
+            <div className="room-others">
+              {otherPlayers.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={p.id === watchTarget?.id && spectating ? 'room-other selected' : 'room-other'}
+                  onClick={() => spectating && !p.finished && setWatching(p.id)}
+                >
+                  <span className="room-other-head">
+                    <CharacterAvatar id={p.character} size={18} /> {p.nickname}
+                    <b>{p.score}</b>
+                    {p.finished && <span className="room-done"> 완료</span>}
+                  </span>
+                  {others[p.id] ? (
+                    <game.Preview
+                      state={others[p.id]}
+                      options={{ ...room.options, seed: room.seed }}
+                      character={p.character}
+                    />
+                  ) : (
+                    <span className="room-other-empty">대기 중</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
           {room.status === 'FINISHED' && (
             <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} />
           )}
@@ -470,10 +475,12 @@ function Chat({
   messages,
   me,
   onSend,
+  compact = false,
 }: {
   messages: ChatMessage[]
   me: string | null
   onSend: (text: string) => void
+  compact?: boolean
 }) {
   const [text, setText] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
@@ -489,7 +496,7 @@ function Chat({
     setText('')
   }
   return (
-    <div className="chat">
+    <div className={compact ? 'chat chat-compact' : 'chat'}>
       <div className="chat-list" ref={listRef}>
         {messages.length === 0 && <p className="room-hint">아직 대화가 없습니다.</p>}
         {messages.map((m, i) =>
