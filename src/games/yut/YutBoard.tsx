@@ -67,7 +67,8 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   if (!busy && (shown.turn !== v.turn || shown.phase !== v.phase)) setShown({ turn: v.turn, phase: v.phase })
   const turn = shown.turn
   const phase = shown.phase
-  const myTurn = me !== null && turn === me && !v.ended && !busy
+  const myTurnShown = me !== null && turn === me && !v.ended
+  const myTurn = myTurnShown && !busy
   const bots = v.players.filter((p) => p.bot)
   const botTurn = !v.ended && bots.some((p) => p.id === turn)
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
@@ -159,14 +160,16 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const remainMs = v.deadline ? Math.max(0, new Date(v.deadline).getTime() - now) : 0
 
   return (
-    <div className={`yut ${v.ended ? '' : myTurn ? 'my-turn' : 'their-turn'}`}>
+    <div className={`yut ${v.ended ? '' : myTurnShown ? 'my-turn' : 'their-turn'}`}>
       <div className="yut-top">
         <div className="yut-turn">
           {v.ended ? (
             <span>게임 종료</span>
           ) : (
             <>
-              <span className={`yut-turn-badge ${myTurn ? 'mine' : ''}`}>{myTurn ? '내 차례' : '상대 차례'}</span>
+              <span className={`yut-turn-badge ${myTurnShown ? 'mine' : ''}`}>
+                {myTurnShown ? '내 차례' : '상대 차례'}
+              </span>
               <CharacterAvatar id={characterOf(turn)} size={26} />
               <b>{nameOf(turn)}</b>
               <span className="yut-turn-phase">
