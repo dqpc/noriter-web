@@ -41,6 +41,7 @@ export function Room() {
   const [watching, setWatching] = useState<string | null>(null)
   const [gameState, setGameState] = useState<Record<string, unknown> | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
+  const [clockOffset, setClockOffset] = useState(0)
   const [chatSeen, setChatSeen] = useState(0)
   const chatLen = useRef(0)
   const socketRef = useRef<RoomSocket | null>(null)
@@ -70,6 +71,10 @@ export function Room() {
         },
         onReconnecting: () => setConnection('reconnecting'),
         onMessage: (m) => {
+          if ((m.type === 'room' || m.type === 'gameState') && m.serverTime) {
+            const t = Date.parse(m.serverTime)
+            if (!Number.isNaN(t)) setClockOffset(t - Date.now())
+          }
           if (m.type === 'hello') setPlayerId(m.playerId)
           else if (m.type === 'room') {
             if (statusRef.current === 'WAITING' && m.room.status === 'COUNTDOWN') setChatSeen(chatLen.current)
@@ -157,7 +162,7 @@ export function Room() {
   }, [cycle])
 
   const isPlaying = room?.status === 'PLAYING' || room?.status === 'COUNTDOWN'
-  const now = useNow(isPlaying)
+  const now = useNow(isPlaying) + clockOffset
 
   if (error && !room) {
     return (
@@ -298,7 +303,13 @@ export function Room() {
             <div className="stage">
               {turnBased && game.Turn ? (
                 gameState ? (
-                  <game.Turn view={gameState} me={playerId} players={room.players} onAction={sendAction} />
+                  <game.Turn
+                    view={gameState}
+                    me={playerId}
+                    players={room.players}
+                    onAction={sendAction}
+                    clockOffset={clockOffset}
+                  />
                 ) : (
                   <p className="room-hint">판을 준비하는 중…</p>
                 )

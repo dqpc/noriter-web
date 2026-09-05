@@ -40,7 +40,7 @@ function useNow(active: boolean): number {
   return now
 }
 
-export function YutBoard({ view, me, players, onAction }: TurnProps) {
+export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnProps) {
   const v = useMemo(() => toYutView(view), [view])
   const stepKey = `${v.turn}:${v.phase}:${v.queue.map((r) => `${r.result}${r.steps}`).join(',')}`
   const [hover, setHover] = useState<{ piece?: PieceKey; dest?: number } | null>(null)
@@ -71,7 +71,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
     v.lastEvent?.type === 'throw' ? (v.lastEvent.boosted ? '+1' : v.lastEvent.converted ? ' (빽도 무효)' : '') : ''
   const animating = throwing || showResult
   const rolling = anim.rolling ?? v.sticks
-  const now = useNow(!v.ended)
+  const now = useNow(!v.ended) + clockOffset
 
   const motion = useMotion(v)
   const busy = Object.keys(motion.overrides).length > 0 || motion.linger.length > 0 || motion.captures.length > 0

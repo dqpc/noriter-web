@@ -26,6 +26,8 @@ export interface TurnProps {
   me: string | null
   players: TurnPlayer[]
   onAction: (action: Record<string, unknown>) => void
+  /** 서버 시계 - 내 시계 (ms). 제한 시간 계산에 더한다 */
+  clockOffset?: number
 }
 
 export interface GameHost {
