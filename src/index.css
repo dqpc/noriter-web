@@ -1350,6 +1350,36 @@ button.room-me {
 .yut-dest-label .stack {
   fill: #86efac;
 }
+.yut-node.target.cold circle,
+.yut-node.target.cold rect,
+.yut-dest-label.cold,
+.yut-piece.cold {
+  opacity: 0.35;
+}
+.yut-node.target.hot .yut-target-ring {
+  stroke-dasharray: none;
+  stroke-width: 4;
+}
+.yut-node.target.hot circle:first-child {
+  fill: #fde68a;
+}
+.yut-piece.hot image {
+  filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 12px #fbbf24);
+}
+.yut-route {
+  fill: none;
+  stroke: #fbbf24;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 10 8;
+  opacity: 0.85;
+  pointer-events: none;
+  animation: yut-route-flow 0.6s linear infinite;
+}
+@keyframes yut-route-flow {
+  to { stroke-dashoffset: -18; }
+}
 .yut-piece.selected image {
   filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px #fbbf24);
 }

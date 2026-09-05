@@ -1,7 +1,7 @@
 import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { CharacterAvatar, characterSvg, findCharacter } from '../../characters'
 import type { TurnProps } from '../types'
-import { CENTER, CORNERS, FINISH, NODE_POS, THROW_LABEL, toYutView, type YutMove } from './board'
+import { CENTER, CORNERS, FINISH, NODE_POS, THROW_LABEL, routeOf, toYutView, type YutMove } from './board'
 
 const TOSS_MS = 1400
 const STICK_DELAY_MS = 90
@@ -25,12 +25,15 @@ function useNow(active: boolean): number {
 export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const v = useMemo(() => toYutView(view), [view])
   const stepKey = `${v.turn}:${v.phase}:${v.queue.join(',')}`
+  const [hover, setHover] = useState<{ piece?: PieceKey; dest?: number } | null>(null)
   const [sel, setSel] = useState<Selection>({ key: '', piece: null, dest: null, branch: null })
   const selPiece = sel.key === stepKey ? sel.piece : null
   const selDest = sel.key === stepKey ? sel.dest : null
   const branch = sel.key === stepKey ? sel.branch : null
-  const select = (piece: PieceKey | null, dest: number | null, br: YutMove[] | null = null) =>
+  const select = (piece: PieceKey | null, dest: number | null, br: YutMove[] | null = null) => {
     setSel({ key: stepKey, piece, dest, branch: br })
+    setHover(null)
+  }
   const throwKey = v.lastEvent?.type === 'throw' ? JSON.stringify([v.lastEvent, v.sticks]) : ''
   const [anim, setAnim] = useState<{ key: string; stage: 'roll' | 'result' | 'done'; rolling: boolean[] | null }>({
     key: '',
@@ -93,6 +96,22 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const destGroups = new Map<number, YutMove[]>()
   for (const m of candidates) destGroups.set(m.dest, [...(destGroups.get(m.dest) ?? []), m])
   const newMoves = active ? v.legalMoves.filter((m) => keyOf(m) === 'new') : []
+  const hotMoves = !hover
+    ? []
+    : candidates.filter((m) => (hover.dest !== undefined ? m.dest === hover.dest : keyOf(m) === hover.piece))
+  const hotPieces = new Set(hotMoves.map(keyOf))
+  const hotDests = new Set(hotMoves.map((m) => m.dest))
+  const hovering = hotMoves.length > 0
+  const routes = hotMoves.map((m) => {
+    const pc = myPieces.find((x) => x.id === m.pieceId)
+    const origin = pc?.path ? pc.node : 0
+    const nodes = [origin, ...routeOf(pc?.path ?? null, pc?.index ?? 0, m)]
+    const pts = nodes.map((n) => NODE_POS[n])
+    if (m.dest === FINISH) pts.push([504, 535])
+    return { key: `${m.pieceId}-${m.result}-${m.via}`, points: pts.map(([x, y]) => `${x},${y}`).join(' ') }
+  })
+  const nodeClass = (node: number, base: string) => `${base} ${hovering ? (hotDests.has(node) ? 'hot' : 'cold') : ''}`
+  const pieceClass = (key: PieceKey, base: string) => `${base} ${hovering ? (hotPieces.has(key) ? 'hot' : 'cold') : ''}`
   const hint = !active
     ? null
     : branch
@@ -171,20 +190,34 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
             const corner = CORNERS.has(i) || i === CENTER
             const group = destGroups.get(i)
             return (
-              <g key={i} className={group ? 'yut-node target' : 'yut-node'} onClick={() => group && clickDest(i)}>
+              <g
+                key={i}
+                className={group ? nodeClass(i, 'yut-node target') : 'yut-node'}
+                onClick={() => group && clickDest(i)}
+                onMouseEnter={() => group && setHover({ dest: i })}
+                onMouseLeave={() => setHover(null)}
+              >
                 <circle cx={x} cy={y} r={corner ? 17 : 12} />
                 {group && <circle cx={x} cy={y} r={corner ? 24 : 19} className="yut-target-ring" />}
               </g>
             )
           })}
           {destGroups.get(FINISH) && (
-            <g className="yut-node target" onClick={() => clickDest(FINISH)}>
+            <g
+              className={nodeClass(FINISH, 'yut-node target')}
+              onClick={() => clickDest(FINISH)}
+              onMouseEnter={() => setHover({ dest: FINISH })}
+              onMouseLeave={() => setHover(null)}
+            >
               <rect x="456" y="520" width="96" height="30" rx="8" />
               <text x="504" y="540" className="yut-finish-label">
                 나가기 · {resultLabel(destGroups.get(FINISH) ?? [])}
               </text>
             </g>
           )}
+          {routes.map((r) => (
+            <polyline key={r.key} points={r.points} className="yut-route" />
+          ))}
           {v.players.map((p) =>
             groupPieces(p.pieces).map((g) => {
               const [x, y] = NODE_POS[g.node]
@@ -195,9 +228,14 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
               return (
                 <g
                   key={`${p.id}-${g.node}`}
-                  className={`yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
+                  className={pieceClass(
+                    g.ids[0],
+                    `yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`,
+                  )}
                   transform={`translate(${x + offset[0]} ${y + offset[1] - 18})`}
                   onClick={() => selectable && pickPiece(g.ids[0])}
+                  onMouseEnter={() => selectable && setHover({ piece: g.ids[0] })}
+                  onMouseLeave={() => setHover(null)}
                 >
                   {g.ids.map((id, i) => (
                     <image
@@ -223,9 +261,14 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
           )}
           {newMoves.length > 0 && (
             <g
-              className={`yut-piece yut-new selectable ${selPiece === 'new' ? 'selected' : ''} ${selDest !== null && !candidates.some((m) => keyOf(m) === 'new') ? 'dim' : ''}`}
+              className={pieceClass(
+                'new',
+                `yut-piece yut-new selectable ${selPiece === 'new' ? 'selected' : ''} ${selDest !== null && !candidates.some((m) => keyOf(m) === 'new') ? 'dim' : ''}`,
+              )}
               transform={`translate(${NODE_POS[0][0]} ${NODE_POS[0][1] - 18})`}
               onClick={() => pickPiece('new')}
+              onMouseEnter={() => setHover({ piece: 'new' })}
+              onMouseLeave={() => setHover(null)}
             >
               <image
                 href={`data:image/svg+xml;utf8,${encodeURIComponent(characterSvg(findCharacter(characterOf(me ?? '')), 'R'))}`}
@@ -250,7 +293,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
               const capture = ms.some((m) => m.captures > 0)
               const stack = !capture && ms.some((m) => m.stacks > 0)
               return (
-                <text key={node} x={x} y={y + (corner ? 36 : 31)} className="yut-dest-label">
+                <text key={node} x={x} y={y + (corner ? 36 : 31)} className={nodeClass(node, 'yut-dest-label')}>
                   {resultLabel(ms)}
                   {capture && <tspan className="capture"> 잡기!</tspan>}
                   {stack && <tspan className="stack"> 업기</tspan>}
