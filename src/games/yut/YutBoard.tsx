@@ -35,6 +35,8 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const now = useNow(!v.ended)
 
   const myTurn = me !== null && v.turn === me && !v.ended
+  const bots = v.players.filter((p) => p.bot)
+  const botTurn = !v.ended && bots.some((p) => p.id === v.turn)
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
   const nameOf = (id: string) => byId.get(id)?.nickname ?? id
   const characterOf = (id: string) => byId.get(id)?.character ?? null
@@ -93,9 +95,11 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
                   ? v.phase === 'THROW'
                     ? '던지세요'
                     : '말을 고르세요'
-                  : v.phase === 'THROW'
-                    ? '던지는 중'
-                    : '말 고르는 중'}
+                  : botTurn
+                    ? '자동 진행 중'
+                    : v.phase === 'THROW'
+                      ? '던지는 중'
+                      : '말 고르는 중'}
               </span>
               <span className="yut-timer">{Math.ceil(remainMs / 1000)}s</span>
             </>
@@ -113,6 +117,13 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
         </div>
       </div>
 
+      {bots.length > 0 && !v.ended && (
+        <div className={`yut-auto ${botTurn ? 'active' : ''}`} role="status">
+          <i className="yut-auto-dot" />
+          자동 진행 중 · {bots.map((p) => nameOf(p.id)).join(', ')}
+          {' 대신 봇이 둡니다'}
+        </div>
+      )}
       <svg className="yut-board" viewBox="0 0 560 560" role="img" aria-label="말판">
         <rect x="60" y="60" width="440" height="440" className="yut-line" />
         <line x1="500" y1="500" x2="60" y2="60" className="yut-line" />
