@@ -62,11 +62,27 @@ body {
   margin: 0 auto;
 }
 .visits {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 14px;
+  row-gap: 2px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
-.visits b {
+.visits dt {
+  margin: 0;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.visits dd {
+  margin: 0;
+  text-align: right;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 700;
+}
+.visits-today {
+  color: var(--accent);
 }
 
 .page-title {
@@ -647,9 +663,16 @@ body {
 }
 .home-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 20px;
+}
+.home-head .page-title {
+  margin-top: 0;
+}
+.home-head .page-sub {
+  margin-bottom: 0;
 }
 .me-button {
   appearance: none;
@@ -1632,4 +1655,375 @@ button.room-me {
 .yut-player-pieces i.done {
   background: #22c55e;
   border-color: #22c55e;
+}
+
+/* Yut: 방 칸 */
+.yut-bang-ring {
+  fill: none;
+  stroke: #fbbf24;
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+  opacity: 0.7;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin 14s linear infinite;
+}
+.yut-bang-star {
+  fill: rgba(251, 191, 36, 0.28);
+  stroke: rgba(253, 230, 138, 0.7);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yut-bang-breathe 3s ease-in-out infinite;
+}
+.yut-bang-star.inner {
+  fill: rgba(253, 230, 138, 0.45);
+  transform: rotate(45deg);
+  animation: none;
+}
+@keyframes yut-bang-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+.yut-node.bang circle:first-child {
+  fill: url(#yut-bang-fill);
+  stroke: #fde68a;
+  stroke-width: 3;
+}
+.yut-bang-text {
+  fill: #1c1917;
+  font-size: 13px;
+  font-weight: 900;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.yut-dest-label .bonus {
+  fill: #c4b5fd;
+}
+.yut-dest-label .blocked {
+  fill: #7dd3fc;
+}
+
+/* Yut: 두 번 누르기 / 보호막 / 효과 배지 */
+.yut-node.target.armed .yut-target-ring {
+  stroke-dasharray: none;
+  stroke-width: 5;
+  animation: yut-armed 0.8s ease-in-out infinite alternate;
+}
+@keyframes yut-armed {
+  from { opacity: 1; }
+  to { opacity: 0.4; }
+}
+.yut-shield {
+  fill: rgba(125, 211, 252, 0.18);
+  stroke: #7dd3fc;
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin 6s linear infinite;
+}
+.yut-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: center;
+  font-size: 12px;
+}
+.yut-effects-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.yut-effects-name {
+  color: var(--muted);
+}
+.yut-effects-row.mine .yut-effects-name {
+  color: var(--accent);
+  font-weight: 700;
+}
+.yut-effect {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fde68a;
+  font-weight: 700;
+}
+.yut-effect.cursed_backdo,
+.yut-effect.rest,
+.yut-effect.target {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+.yut-effect.shield {
+  background: rgba(125, 211, 252, 0.14);
+  border-color: rgba(125, 211, 252, 0.45);
+  color: #bae6fd;
+}
+.yut-choose {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+.yut-choose-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.yut-chip-btn {
+  padding: 10px 16px;
+  font-size: 17px;
+}
+.yut-players li.resigned {
+  opacity: 0.5;
+}
+.yut-surrender {
+  justify-self: end;
+  color: var(--muted);
+}
+
+/* Yut: 카드 */
+.yut-cards {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: rgba(8, 10, 16, 0.78);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  place-items: center;
+  overflow: hidden;
+  animation: fade-in 0.3s ease-out both;
+  z-index: 3;
+}
+.yut-cards-head {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding-top: 12px;
+  text-align: center;
+}
+.yut-cards-title {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 800;
+}
+.yut-cards-who {
+  font-size: 15px;
+  font-weight: 700;
+}
+.yut-deck {
+  position: absolute;
+  top: 50%;
+  width: 17%;
+  aspect-ratio: 5 / 7;
+  border-radius: 10px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  animation: yut-deck-in 0.4s ease-out both;
+}
+.yut-deck.angel {
+  left: 5%;
+  background: linear-gradient(160deg, #fffbeb, #fcd34d 60%, #f59e0b);
+  color: #78350f;
+}
+.yut-deck.devil {
+  right: 5%;
+  background: linear-gradient(160deg, #7f1d1d, #450a0a 60%, #1c0a0a);
+  color: #fca5a5;
+  border: 1px solid #b91c1c;
+}
+@keyframes yut-deck-in {
+  from { opacity: 0; transform: translateY(-50%) scale(0.6); }
+  to { opacity: 1; transform: translateY(-50%) scale(1); }
+}
+.yut-fan {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+.yut-card {
+  --w: 19%;
+  position: absolute;
+  width: var(--w);
+  aspect-ratio: 5 / 7;
+  border: none;
+  padding: 0;
+  background: transparent;
+  perspective: 800px;
+  transform: translateX(calc(var(--fx) * var(--w) * 0.55)) rotate(var(--fr)) translateY(0);
+  transform-origin: 50% 120%;
+  cursor: default;
+}
+.yut-card.dealing {
+  animation: yut-card-deal 2.6s cubic-bezier(0.25, 0.9, 0.3, 1) both;
+  animation-delay: var(--dl);
+}
+@keyframes yut-card-deal {
+  0% { transform: translateX(calc(var(--from) * 250%)) rotate(0deg) scale(0.9); opacity: 0; }
+  10% { opacity: 1; }
+  35% { transform: translateX(0) rotate(0deg) scale(1); }
+  50% { transform: translateX(-6%) rotate(-6deg) scale(1.02); }
+  62% { transform: translateX(6%) rotate(5deg) scale(1.02); }
+  74% { transform: translateX(0) rotate(0deg) scale(1); }
+  100% { transform: translateX(calc(var(--fx) * var(--w) * 0.55)) rotate(var(--fr)) scale(1); opacity: 1; }
+}
+.yut-card.pickable {
+  cursor: pointer;
+}
+.yut-card.pickable:hover,
+.yut-card.pickable:focus-visible {
+  transform: translateX(calc(var(--fx) * var(--w) * 0.55)) rotate(var(--fr)) translateY(-10%) scale(1.06);
+  transition: transform 0.15s ease-out;
+}
+.yut-card-back,
+.yut-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  backface-visibility: hidden;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+.yut-card-back {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12), transparent 60%),
+    repeating-linear-gradient(45deg, #3b2a6b 0 6px, #2a1d4d 6px 12px);
+  border: 2px solid #a78bfa;
+}
+.yut-card-mark {
+  font-size: clamp(22px, 5vmin, 40px);
+  font-weight: 900;
+  color: #ddd6fe;
+  text-shadow: 0 2px 0 #1c1917;
+}
+.yut-card-face {
+  transform: rotateY(180deg);
+  gap: 4px;
+  grid-template-rows: auto 1fr auto;
+  padding: 8% 4%;
+  text-align: center;
+}
+.yut-card-face.angel {
+  background: linear-gradient(160deg, #fffbeb, #fde68a 55%, #f59e0b);
+  color: #78350f;
+  border: 2px solid #fde68a;
+}
+.yut-card-face.devil {
+  background: linear-gradient(160deg, #991b1b, #450a0a 60%, #0c0404);
+  color: #fecaca;
+  border: 2px solid #ef4444;
+}
+.yut-card-kind {
+  font-size: clamp(9px, 1.8vmin, 12px);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+.yut-card-icon {
+  font-size: clamp(24px, 6vmin, 48px);
+}
+.yut-card-label {
+  font-size: clamp(11px, 2.4vmin, 17px);
+  font-weight: 900;
+  word-break: keep-all;
+}
+.yut-card.picked {
+  z-index: 2;
+  animation: yut-card-reveal 2.4s ease-out both;
+}
+.yut-card.picked .yut-card-back {
+  animation: yut-card-flip-back 0.6s 0.2s ease-in-out both;
+}
+.yut-card.picked .yut-card-face {
+  animation: yut-card-flip-face 0.6s 0.2s ease-in-out both;
+}
+@keyframes yut-card-flip-back {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(180deg); }
+}
+@keyframes yut-card-flip-face {
+  from { transform: rotateY(180deg); }
+  to { transform: rotateY(360deg); }
+}
+@keyframes yut-card-reveal {
+  0% { transform: translateX(calc(var(--fx) * var(--w) * 0.55)) rotate(var(--fr)) scale(1); }
+  25%, 85% { transform: translateX(0) rotate(0deg) scale(1.6); }
+  100% { transform: translateX(0) rotate(0deg) scale(1.6); opacity: 0; }
+}
+.yut-card.faded {
+  animation: yut-card-fade 0.5s ease-out both;
+}
+@keyframes yut-card-fade {
+  to { opacity: 0; transform: translateY(30%) scale(0.8); }
+}
+.yut-cards.stage-reveal.kind-angel::before,
+.yut-cards.stage-reveal.kind-devil::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  pointer-events: none;
+}
+.yut-cards.stage-reveal.kind-angel::before {
+  background: conic-gradient(from 0deg, rgba(253, 230, 138, 0) 0 20deg, rgba(253, 230, 138, 0.35) 30deg, rgba(253, 230, 138, 0) 40deg 60deg, rgba(253, 230, 138, 0.35) 70deg, rgba(253, 230, 138, 0) 80deg 100deg, rgba(253, 230, 138, 0.35) 110deg, rgba(253, 230, 138, 0) 120deg 140deg, rgba(253, 230, 138, 0.35) 150deg, rgba(253, 230, 138, 0) 160deg 180deg, rgba(253, 230, 138, 0.35) 190deg, rgba(253, 230, 138, 0) 200deg 220deg, rgba(253, 230, 138, 0.35) 230deg, rgba(253, 230, 138, 0) 240deg 260deg, rgba(253, 230, 138, 0.35) 270deg, rgba(253, 230, 138, 0) 280deg 300deg, rgba(253, 230, 138, 0.35) 310deg, rgba(253, 230, 138, 0) 320deg 340deg, rgba(253, 230, 138, 0.35) 350deg, rgba(253, 230, 138, 0) 360deg);
+  animation: spin 8s linear infinite, fade-in 0.6s 0.5s both;
+}
+.yut-cards.stage-reveal.kind-devil {
+  animation: yut-devil-shake 0.5s 0.6s ease-out;
+}
+.yut-cards.stage-reveal.kind-devil::before {
+  background: radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.45), transparent 55%);
+  animation: yut-devil-flash 0.5s 0.6s ease-out both;
+}
+@keyframes yut-devil-flash {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+@keyframes yut-devil-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-7px, 4px); }
+  40% { transform: translate(7px, -4px); }
+  60% { transform: translate(-5px, -3px); }
+  80% { transform: translate(5px, 3px); }
+}
+.yut-card-desc {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 0 16px 14px;
+  text-align: center;
+  animation: fade-in 0.5s 0.9s both;
+  z-index: 3;
+}
+.yut-card-desc b {
+  font-size: 18px;
+}
+.yut-card-desc span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.kind-devil .yut-card-desc b {
+  color: #fca5a5;
+}
+.kind-angel .yut-card-desc b {
+  color: #fde68a;
+}
+@media (prefers-reduced-motion: reduce) {
+  .yut-card.dealing,
+  .yut-bang-star,
+  .yut-bang-ring,
+  .yut-shield {
+    animation: none;
+  }
 }

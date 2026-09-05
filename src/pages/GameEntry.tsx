@@ -65,7 +65,7 @@ export function GameEntry() {
       <div className="entry-hero">
         <game.Icon size={96} />
         <p className="entry-desc">{game.description}</p>
-        <p className="game-card-best">최고 {getBestScore(game.id)}</p>
+        {!game.turnBased && <p className="game-card-best">최고 {getBestScore(game.id)}</p>}
       </div>
       <div className="entry-actions">
         {game.Component && (
@@ -83,8 +83,8 @@ export function GameEntry() {
         <input
           className="input mono"
           value={code}
-          maxLength={8}
-          placeholder="방 코드 8자"
+          maxLength={4}
+          placeholder="방 코드 4자"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}

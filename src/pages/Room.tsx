@@ -551,8 +551,8 @@ function Lobby({
   )
 }
 
-const OPTION_LABELS: Record<string, string> = { target: '목표 타일', pieces: '말 개수' }
-const OPTION_VALUES: Record<string, string> = { normal: '보통', fast: '빠름' }
+const OPTION_LABELS: Record<string, string> = { target: '목표 타일', pieces: '말 개수', cards: '천사·악마 카드' }
+const OPTION_VALUES: Record<string, string> = { normal: '보통', fast: '빠름', true: '켬', false: '끔' }
 
 function optionLabel(key: string): string {
   return OPTION_LABELS[key] ?? key
