@@ -83,6 +83,11 @@ describe('stairs', () => {
       expect(press(s, 'CLIMB', t2 + 50).steps - s.steps).toBe(BOOST_STEPS)
     }
   })
+  it('방 모드(autoStart)에서는 입력 없이도 타이머가 바로 돈다', () => {
+    const s = newStairs(9, 1000, true)
+    expect(s.startedAt).toBe(1000)
+    expect(tick(s, 1500).energy).toBeLessThan(s.rules.maxEnergy)
+  })
   it('에너지는 최대치를 넘지 않는다', () => {
     let s = newStairs(3)
     for (let i = 1; i <= 5; i++) s = press(s, actionFor(s, i), i * 300)

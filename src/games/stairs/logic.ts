@@ -52,14 +52,14 @@ export function makeItems(seed: number): (i: number) => boolean {
   }
 }
 
-export function newStairs(seed: number, now = 0): StairsState {
+export function newStairs(seed: number, now = 0, autoStart = false): StairsState {
   const rules = RULES
   const dirAt = makePattern(seed)
   return {
     steps: 0,
     facing: dirAt(1),
     energy: rules.maxEnergy,
-    startedAt: null,
+    startedAt: autoStart ? now : null,
     updatedAt: now,
     ended: false,
     fell: false,
