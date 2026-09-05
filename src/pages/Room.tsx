@@ -484,7 +484,7 @@ function Lobby({
   )
 }
 
-const OPTION_LABELS: Record<string, string> = { target: '목표 타일' }
+const OPTION_LABELS: Record<string, string> = { target: '목표 타일', pieces: '말 개수' }
 const OPTION_VALUES: Record<string, string> = { normal: '보통', fast: '빠름' }
 
 function optionLabel(key: string): string {
