@@ -3,8 +3,13 @@ import { CharacterAvatar, characterSvg, findCharacter } from '../../characters'
 import type { TurnProps } from '../types'
 import { CENTER, CORNERS, FINISH, NODE_POS, THROW_LABEL, toYutView, type YutMove } from './board'
 
-const ROLL_MS = 1000
-const RESULT_MS = 1200
+const TOSS_MS = 1400
+const STICK_DELAY_MS = 90
+const LAND_AT = 0.62
+const ROLL_MS = TOSS_MS + STICK_DELAY_MS * 3
+const RESULT_MS = 1100
+const STICK_SX = ['-28px', '-8px', '10px', '26px']
+const STICK_RZ = ['-14deg', '6deg', '-5deg', '12deg']
 const SPARKS: Record<string, number> = { BACKDO: 8, DO: 0, GAE: 0, GEOL: 6, YUT: 10, MO: 16 }
 
 function useNow(active: boolean): number {
@@ -20,16 +25,12 @@ function useNow(active: boolean): number {
 export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const v = useMemo(() => toYutView(view), [view])
   const stepKey = `${v.turn}:${v.phase}:${v.queue.join(',')}`
-  const [sel, setSel] = useState<{ key: string; chip: string | null; pending: YutMove[] | null }>({
-    key: '',
-    chip: null,
-    pending: null,
-  })
-  const distinct = Array.from(new Set(v.queue))
-  const chip = sel.key === stepKey ? sel.chip : distinct.length === 1 ? distinct[0] : null
-  const pending = sel.key === stepKey ? sel.pending : null
-  const setChip = (c: string | null) => setSel({ key: stepKey, chip: c, pending: null })
-  const setPending = (m: YutMove[] | null) => setSel({ key: stepKey, chip, pending: m })
+  const [sel, setSel] = useState<Selection>({ key: '', piece: null, dest: null, branch: null })
+  const selPiece = sel.key === stepKey ? sel.piece : null
+  const selDest = sel.key === stepKey ? sel.dest : null
+  const branch = sel.key === stepKey ? sel.branch : null
+  const select = (piece: PieceKey | null, dest: number | null, br: YutMove[] | null = null) =>
+    setSel({ key: stepKey, piece, dest, branch: br })
   const throwKey = v.lastEvent?.type === 'throw' ? JSON.stringify([v.lastEvent, v.sticks]) : ''
   const [anim, setAnim] = useState<{ key: string; stage: 'roll' | 'result' | 'done'; rolling: boolean[] | null }>({
     key: '',
@@ -51,12 +52,23 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
 
   useEffect(() => {
     if (!throwKey) return
-    const flips = window.setInterval(
-      () => setAnim({ key: throwKey, stage: 'roll', rolling: Array.from({ length: 4 }, () => Math.random() < 0.5) }),
-      90,
-    )
+    const finalSticks = (JSON.parse(throwKey) as [unknown, boolean[]])[1]
+    const start = Date.now()
+    let delay = 55
+    let flip = 0
+    const tick = () => {
+      const t = Date.now() - start
+      setAnim({
+        key: throwKey,
+        stage: 'roll',
+        rolling: finalSticks.map((f, i) => (t >= TOSS_MS * LAND_AT + i * STICK_DELAY_MS ? f : Math.random() < 0.5)),
+      })
+      delay = Math.min(delay * 1.15, 200)
+      flip = window.setTimeout(tick, delay)
+    }
+    tick()
     const toResult = window.setTimeout(() => {
-      window.clearInterval(flips)
+      window.clearTimeout(flip)
       setAnim({ key: throwKey, stage: 'result', rolling: null })
     }, ROLL_MS)
     const toDone = window.setTimeout(
@@ -64,30 +76,44 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
       ROLL_MS + RESULT_MS,
     )
     return () => {
-      window.clearInterval(flips)
+      window.clearTimeout(flip)
       window.clearTimeout(toResult)
       window.clearTimeout(toDone)
     }
   }, [throwKey])
 
-  const movesFor = (result: string | null) => (result ? v.legalMoves.filter((m) => m.result === result) : [])
   const active = myTurn && v.phase === 'MOVE' && !throwing
-  const candidates = active ? movesFor(chip) : []
-  const destNodes = new Set(candidates.map((m) => m.dest))
   const myPieces = me ? (v.players.find((p) => p.id === me)?.pieces ?? []) : []
-  const waitingMove = candidates.find((m) =>
-    myPieces.some((pc) => pc.id === m.pieceId && pc.path === null && !pc.finished),
+  const waitingIds = new Set(myPieces.filter((pc) => pc.path === null && !pc.finished).map((pc) => pc.id))
+  const keyOf = (m: YutMove): PieceKey => (waitingIds.has(m.pieceId) ? 'new' : m.pieceId)
+  const candidates = (active ? v.legalMoves : []).filter(
+    (m) => (selPiece === null || keyOf(m) === selPiece) && (selDest === null || m.dest === selDest),
   )
+  const destGroups = new Map<number, YutMove[]>()
+  for (const m of candidates) destGroups.set(m.dest, [...(destGroups.get(m.dest) ?? []), m])
+  const newMoves = active ? v.legalMoves.filter((m) => keyOf(m) === 'new') : []
+  const hint = !active
+    ? null
+    : branch
+      ? '어느 쪽으로 갈까요?'
+      : selDest !== null
+        ? '어느 말로 갈까요? 말을 누르세요'
+        : selPiece !== null
+          ? '도착지를 누르세요'
+          : candidates.length === 0
+            ? '움직일 수 있는 말이 없습니다'
+            : '말이나 도착지를 누르세요'
 
-  const pickPiece = (pieceId: number) => {
-    const ms = candidates.filter((m) => m.pieceId === pieceId)
+  const pickPiece = (key: PieceKey) => {
+    const ms = candidates.filter((m) => keyOf(m) === key)
     if (ms.length === 0) return
     if (ms.length === 1) send(ms[0])
-    else setPending(ms)
+    else if (selPiece === key) select(null, null)
+    else select(key, null)
   }
   const send = (m: YutMove) => {
     onAction({ type: 'move', pieceId: m.pieceId, result: m.result, ...(m.via !== null ? { via: m.via } : {}) })
-    setPending(null)
+    select(null, null)
   }
 
   const remainMs = v.deadline ? Math.max(0, new Date(v.deadline).getTime() - now) : 0
@@ -141,19 +167,19 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
           <line x1="500" y1="60" x2="60" y2="500" className="yut-line" />
           {NODE_POS.map(([x, y], i) => {
             const corner = CORNERS.has(i) || i === CENTER
-            const target = destNodes.has(i)
+            const group = destGroups.get(i)
             return (
-              <g key={i} className={target ? 'yut-node target' : 'yut-node'} onClick={() => target && clickDest(i)}>
+              <g key={i} className={group ? 'yut-node target' : 'yut-node'} onClick={() => group && clickDest(i)}>
                 <circle cx={x} cy={y} r={corner ? 17 : 12} />
-                {target && <circle cx={x} cy={y} r={corner ? 24 : 19} className="yut-target-ring" />}
+                {group && <circle cx={x} cy={y} r={corner ? 24 : 19} className="yut-target-ring" />}
               </g>
             )
           })}
-          {finishTarget(candidates) && (
+          {destGroups.get(FINISH) && (
             <g className="yut-node target" onClick={() => clickDest(FINISH)}>
               <rect x="456" y="520" width="96" height="30" rx="8" />
               <text x="504" y="540" className="yut-finish-label">
-                나가기
+                나가기 · {resultLabel(destGroups.get(FINISH) ?? [])}
               </text>
             </g>
           )}
@@ -162,11 +188,12 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
               const [x, y] = NODE_POS[g.node]
               const mine = p.id === me
               const selectable = active && g.ids.some((id) => candidates.some((m) => m.pieceId === id))
+              const selected = selPiece !== null && g.ids.includes(selPiece as number)
               const offset = playerOffset(v.players, p.id)
               return (
                 <g
                   key={`${p.id}-${g.node}`}
-                  className={`yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''}`}
+                  className={`yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
                   transform={`translate(${x + offset[0]} ${y + offset[1] - 18})`}
                   onClick={() => selectable && pickPiece(g.ids[0])}
                 >
@@ -192,13 +219,59 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
               )
             }),
           )}
+          {newMoves.length > 0 && (
+            <g
+              className={`yut-piece yut-new selectable ${selPiece === 'new' ? 'selected' : ''} ${selDest !== null && !candidates.some((m) => keyOf(m) === 'new') ? 'dim' : ''}`}
+              transform={`translate(${NODE_POS[0][0]} ${NODE_POS[0][1] - 18})`}
+              onClick={() => pickPiece('new')}
+            >
+              <image
+                href={`data:image/svg+xml;utf8,${encodeURIComponent(characterSvg(findCharacter(characterOf(me ?? '')), 'R'))}`}
+                x="-16"
+                y="-16"
+                width="32"
+                height="32"
+              />
+              <g transform="translate(14 -14)">
+                <circle r="9" className="yut-stack-badge" />
+                <text y="4" className="yut-stack-text">
+                  +{waitingIds.size}
+                </text>
+              </g>
+            </g>
+          )}
+          {[...destGroups.entries()]
+            .filter(([node]) => node >= 0)
+            .map(([node, ms]) => {
+              const [x, y] = NODE_POS[node]
+              const corner = CORNERS.has(node) || node === CENTER
+              const capture = ms.some((m) => m.captures > 0)
+              const stack = !capture && ms.some((m) => m.stacks > 0)
+              return (
+                <text key={node} x={x} y={y + (corner ? 36 : 31)} className="yut-dest-label">
+                  {resultLabel(ms)}
+                  {capture && <tspan className="capture"> 잡기!</tspan>}
+                  {stack && <tspan className="stack"> 업기</tspan>}
+                </text>
+              )
+            })}
         </svg>
         {(throwing || showResult) && (
           <div className={`yut-fx ${showResult ? `show yut-fx-${result.toLowerCase()}` : 'roll'}`} aria-hidden>
             {throwing ? (
               <div className="yut-fx-sticks">
                 {rolling.map((flat, i) => (
-                  <span key={i} className={`yut-stick ${flat ? 'flat' : 'round'} rolling`}>
+                  <span
+                    key={i}
+                    className={`yut-stick ${flat ? 'flat' : 'round'} tossing`}
+                    style={
+                      {
+                        '--dl': `${i * STICK_DELAY_MS}ms`,
+                        '--sx': STICK_SX[i],
+                        '--rz': STICK_RZ[i],
+                      } as CSSProperties
+                    }
+                  >
                     {i === 0 && <i className="yut-mark" />}
                   </span>
                 ))}
@@ -222,23 +295,17 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
       </div>
 
       <div className="yut-controls">
-        <div className="yut-queue">
-          {v.queue.map((r, i) => (
-            <button
-              key={`${r}-${i}`}
-              type="button"
-              className={`btn ${chip === r ? '' : 'btn-ghost'} yut-chip`}
-              disabled={!active}
-              onClick={() => {
-                setChip(r)
-                setPending(null)
-              }}
-            >
-              {THROW_LABEL[r]}
-            </button>
-          ))}
-          {v.bonusThrows > 0 && <span className="room-hint">한 번 더 ×{v.bonusThrows}</span>}
-        </div>
+        {(v.queue.length > 0 || v.bonusThrows > 0) && (
+          <div className="yut-queue">
+            {v.queue.length > 0 && <span className="room-hint">남은 결과</span>}
+            {v.queue.map((r, i) => (
+              <span key={`${r}-${i}`} className="yut-chip">
+                {THROW_LABEL[r]}
+              </span>
+            ))}
+            {v.bonusThrows > 0 && <span className="room-hint">한 번 더 ×{v.bonusThrows}</span>}
+          </div>
+        )}
         {myTurn && v.phase === 'THROW' && (
           <button
             type="button"
@@ -249,25 +316,16 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
             윷 던지기
           </button>
         )}
-        {active && chip && waitingMove && (
-          <button type="button" className="btn btn-ghost" onClick={() => send(waitingMove)}>
-            새 말 내기 → {destName(v.names, waitingMove.dest)}
-            {waitingMove.captures > 0 ? ' (잡기!)' : ''}
-          </button>
-        )}
-        {pending && (
+        {hint && <p className="room-hint yut-hint">{hint}</p>}
+        {branch && (
           <div className="yut-branch">
-            <span>어느 쪽으로?</span>
-            {pending.map((m) => (
+            {branch.map((m) => (
               <button key={String(m.via)} type="button" className="btn" onClick={() => send(m)}>
                 {m.via === 27 ? '사려 방향' : '속윷 방향'} → {destName(v.names, m.dest)}
                 {m.captures > 0 ? ' (잡기!)' : ''}
               </button>
             ))}
           </div>
-        )}
-        {active && chip && candidates.length === 0 && (
-          <p className="room-hint">이 결과로 움직일 수 있는 말이 없습니다.</p>
         )}
       </div>
 
@@ -293,8 +351,24 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   function clickDest(node: number) {
     const ms = candidates.filter((m) => m.dest === node)
     if (ms.length === 1) send(ms[0])
-    else if (ms.length > 1) setPending(ms)
+    else if (ms.length > 1) {
+      const pieces = new Set(ms.map(keyOf))
+      if (pieces.size > 1) select(selPiece, node)
+      else select(selPiece, node, ms)
+    }
   }
+}
+
+type PieceKey = number | 'new'
+interface Selection {
+  key: string
+  piece: PieceKey | null
+  dest: number | null
+  branch: YutMove[] | null
+}
+
+function resultLabel(ms: YutMove[]): string {
+  return Array.from(new Set(ms.map((m) => THROW_LABEL[m.result] ?? m.result))).join('/')
 }
 
 function groupPieces(pieces: { id: number; node: number; path: string | null; index: number; finished: boolean }[]) {
@@ -318,10 +392,6 @@ function playerOffset(players: { id: string }[], id: string): [number, number] {
     [9, 8],
   ]
   return offsets[i] ?? [0, 0]
-}
-
-function finishTarget(candidates: YutMove[]): boolean {
-  return candidates.some((m) => m.dest === FINISH)
 }
 
 function destName(names: string[], dest: number): string {

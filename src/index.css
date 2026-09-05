@@ -1082,13 +1082,31 @@ button.room-me {
 .yut-fx-sticks {
   display: flex;
   gap: 18px;
+  perspective: 700px;
 }
 .yut-fx-sticks .yut-stick {
   width: 30px;
   height: 120px;
   border-radius: 15px;
   border-width: 3px;
-  animation-duration: 0.14s;
+  transition: none;
+  transform-style: preserve-3d;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.45);
+}
+.yut-fx-sticks .yut-stick.tossing {
+  animation: yut-toss 1.4s cubic-bezier(0.3, 0.1, 0.4, 1) both;
+  animation-delay: var(--dl);
+}
+@keyframes yut-toss {
+  0% { transform: translate(0, 150px) rotateX(0deg) rotateZ(0deg) scale(0.9); opacity: 0; }
+  6% { opacity: 1; }
+  38% { transform: translate(var(--sx), -180px) rotateX(900deg) rotateZ(calc(var(--rz) * 0.5)) scale(1.25); }
+  62% { transform: translate(var(--sx), 0) rotateX(1440deg) rotateZ(var(--rz)) scale(1); }
+  70% { transform: translate(calc(var(--sx) * 1.1), -36px) rotateX(1440deg) rotateZ(var(--rz)); }
+  78% { transform: translate(calc(var(--sx) * 1.15), 0) rotateX(1440deg) rotateZ(var(--rz)); }
+  86% { transform: translate(calc(var(--sx) * 1.18), -10px) rotateX(1440deg) rotateZ(var(--rz)); }
+  92% { transform: translate(calc(var(--sx) * 1.2), 0) rotateX(1440deg) rotateZ(var(--rz)); }
+  100% { transform: translate(calc(var(--sx) * 1.2), 0) rotateX(1440deg) rotateZ(var(--rz)); }
 }
 .yut-fx-sticks .yut-mark {
   width: 9px;
@@ -1290,8 +1308,42 @@ button.room-me {
   min-height: 36px;
 }
 .yut-chip {
-  padding: 6px 14px;
-  font-size: 16px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+.yut-hint {
+  text-align: center;
+  margin: 0;
+}
+.yut-dest-label {
+  font-size: 15px;
+  font-weight: 800;
+  fill: #fbbf24;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #1e2a3a;
+  stroke-width: 4px;
+  pointer-events: none;
+}
+.yut-dest-label .capture {
+  fill: #f87171;
+}
+.yut-dest-label .stack {
+  fill: #86efac;
+}
+.yut-piece.selected image {
+  filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px #fbbf24);
+}
+.yut-new image {
+  opacity: 0.9;
+}
+.yut-new.dim {
+  opacity: 0.35;
 }
 .yut-throw {
   padding: 14px;
