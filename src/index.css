@@ -647,9 +647,16 @@ body {
 }
 .home-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 20px;
+}
+.home-head .page-title {
+  margin-top: 0;
+}
+.home-head .page-sub {
+  margin-bottom: 0;
 }
 .me-button {
   appearance: none;
