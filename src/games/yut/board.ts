@@ -40,21 +40,36 @@ export const PATHS: Record<string, number[]> = {
 export const STEPS: Record<string, number> = { BACKDO: -1, DO: 1, GAE: 2, GEOL: 3, YUT: 4, MO: 5 }
 
 export function routeOf(path: string | null, index: number, m: YutMove): number[] {
-  const steps = STEPS[m.result] ?? 0
+  const steps = m.steps ?? STEPS[m.result] ?? 0
   let p = path ?? 'RING'
   let i = path ? index : 0
-  if (m.via !== null) {
-    const cur = PATHS[p][i]
-    const branch = Object.keys(PATHS).find((k) => PATHS[k][0] === cur && PATHS[k][1] === m.via)
-    if (branch) {
-      p = branch
+  let switched = m.via === null
+  const branchAt = (node: number) => Object.keys(PATHS).find((k) => PATHS[k][0] === node && PATHS[k][1] === m.via)
+  const out: number[] = []
+  if (!switched) {
+    const b = branchAt(PATHS[p][i])
+    if (b) {
+      p = b
       i = 0
+      switched = true
     }
   }
-  const nodes = PATHS[p]
-  const out: number[] = []
-  if (steps > 0) for (let k = 1; k <= steps && i + k < nodes.length; k++) out.push(nodes[i + k])
-  else if (i > 0) out.push(nodes[i - 1])
+  if (steps > 0) {
+    for (let k = 0; k < steps; k++) {
+      i += 1
+      if (i >= PATHS[p].length) break
+      const node = PATHS[p][i]
+      out.push(node)
+      if (!switched) {
+        const b = branchAt(node)
+        if (b) {
+          p = b
+          i = 0
+          switched = true
+        }
+      }
+    }
+  } else if (i > 0) out.push(PATHS[p][i - 1])
   if (m.dest !== FINISH && out[out.length - 1] !== m.dest) return [m.dest]
   return out
 }
@@ -78,6 +93,7 @@ export function stepsBetween(
   for (let i = oldIndex + 1; i < oldNodes.length; i++) {
     out.push(oldNodes[i])
     if (oldNodes[i] === next.node) return out
+    if (nodes[0] === oldNodes[i]) return [...out, ...nodes.slice(1, next.index + 1)]
   }
   return [next.node]
 }
@@ -103,37 +119,67 @@ export interface YutPieceView {
   finished: boolean
 }
 
+export interface YutEffect {
+  id: string
+  label: string
+}
+
 export interface YutPlayerView {
   id: string
   pieces: YutPieceView[]
   finished: number
   bot: boolean
+  resigned: boolean
+  effects: YutEffect[]
 }
 
 export interface YutMove {
   pieceId: number
   result: string
+  steps: number
   via: number | null
   dest: number
   captures: number
   stacks: number
+  blocked: number
+}
+
+export interface YutRolled {
+  result: string
+  steps: number
+}
+
+export interface YutCardInfo {
+  id: string
+  kind: 'ANGEL' | 'DEVIL'
+  label: string
+  description: string
 }
 
 export interface YutView {
   players: YutPlayerView[]
   turn: string
-  phase: 'THROW' | 'MOVE' | 'ENDED'
-  queue: string[]
+  actor: string
+  phase: 'THROW' | 'MOVE' | 'CARD' | 'ENDED'
+  queue: YutRolled[]
   sticks: boolean[]
   bonusThrows: number
+  chooseThrow: boolean
   deadline: string | null
   legalMoves: YutMove[]
+  card: { player: string; trigger: string; size: number } | null
   lastEvent: Record<string, unknown>
   ended: boolean
   ranking: string[]
   finishedOrder: string[]
-  options: { backdo: boolean; pieces: number; turnSeconds: number }
+  options: { backdo: boolean; cards: boolean; pieces: number; turnSeconds: number; cardSeconds: number }
   names: string[]
+}
+
+export function rolledLabel(r: YutRolled): string {
+  const base = THROW_LABEL[r.result] ?? r.result
+  const extra = r.steps - (STEPS[r.result] ?? 0)
+  return extra > 0 ? `${base}+${extra}` : base
 }
 
 export function toYutView(raw: Record<string, unknown>): YutView {
