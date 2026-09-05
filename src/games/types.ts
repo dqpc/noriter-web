@@ -7,8 +7,17 @@ export interface GameResult {
   elapsedMs: number
 }
 
+export type GameStateSnapshot = Record<string, unknown>
+
+export interface PreviewProps {
+  state: GameStateSnapshot
+  options?: GameOptions
+  character?: string | null
+}
+
 export interface GameHost {
   onScore: (score: number) => void
+  onState?: (state: GameStateSnapshot) => void
   onGameOver: (score: number, result: GameResult) => void
 }
 
@@ -18,4 +27,5 @@ export interface GameDefinition {
   description: string
   Icon: ComponentType<{ size?: number }>
   Component: ComponentType<{ host: GameHost; options?: GameOptions }>
+  Preview: ComponentType<PreviewProps>
 }

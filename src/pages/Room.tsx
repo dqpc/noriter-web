@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { CharacterAvatar, CharacterPicker, findCharacter, getMyCharacter, setMyCharacter } from '../characters'
-import type { GameHost } from '../games/types'
+import type { GameDefinition, GameHost } from '../games/types'
 import { findGame } from '../games/registry'
 import {
   RoomSocket,
-  createRoom,
   fetchRoom,
   type ChatMessage,
   type OptionValue,
@@ -27,7 +26,6 @@ function useNow(active: boolean): number {
 
 export function Room() {
   const { roomId = '' } = useParams()
-  const navigate = useNavigate()
   const [room, setRoom] = useState<RoomSnapshot | null | undefined>(undefined)
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [nickname, setNickname] = useState(() => getPreference('room', 'nickname') ?? '')
@@ -37,6 +35,8 @@ export function Room() {
   const [chat, setChat] = useState<ChatMessage[]>([])
   const [character, setCharacter] = useState(getMyCharacter)
   const [picking, setPicking] = useState(false)
+  const [others, setOthers] = useState<Record<string, Record<string, unknown>>>({})
+  const [watching, setWatching] = useState<string | null>(null)
   const socketRef = useRef<RoomSocket | null>(null)
 
   useEffect(() => {
@@ -64,7 +64,13 @@ export function Room() {
       onReconnecting: () => setConnection('reconnecting'),
       onMessage: (m) => {
         if (m.type === 'hello') setPlayerId(m.playerId)
-        else if (m.type === 'room') setRoom(m.room)
+        else if (m.type === 'room') {
+          setRoom(m.room)
+          if (m.room.status === 'WAITING' || m.room.status === 'COUNTDOWN') {
+            setOthers({})
+            setWatching(null)
+          }
+        } else if (m.type === 'playerState') setOthers((prev) => ({ ...prev, [m.playerId]: m.state }))
         else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
         else if (m.type === 'chatHistory') setChat(m.messages)
         else if (m.type === 'error') setError(m.message)
@@ -87,9 +93,34 @@ export function Room() {
     () => ({
       onScore: (score) => send({ type: 'score', score }),
       onGameOver: (score) => send({ type: 'finish', score }),
+      onState: (state) => send({ type: 'state', state }),
     }),
     [send],
   )
+
+  const cycle = useCallback(
+    (dir: number) => {
+      if (!room || !playerId) return
+      const list = room.players.filter((p) => p.id !== playerId && !p.finished)
+      if (list.length === 0) return
+      setWatching((cur) => {
+        const i = Math.max(
+          0,
+          list.findIndex((p) => p.id === cur),
+        )
+        return list[(i + dir + list.length) % list.length].id
+      })
+    },
+    [room, playerId],
+  )
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') cycle(-1)
+      else if (e.key === 'ArrowRight') cycle(1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cycle])
 
   const isPlaying = room?.status === 'PLAYING' || room?.status === 'COUNTDOWN'
   const now = useNow(isPlaying)
@@ -119,6 +150,10 @@ export function Room() {
   const game = findGame(room.gameId)
   const me = room.players.find((p) => p.id === playerId)
   const isHost = playerId !== null && room.hostId === playerId
+  const otherPlayers = room.players.filter((p) => p.id !== playerId)
+  const playing = otherPlayers.filter((p) => !p.finished)
+  const spectating = Boolean(me?.finished) && playing.length > 0
+  const watchTarget = playing.find((p) => p.id === watching) ?? playing[0] ?? null
 
   if (!joined) {
     const full = room.players.length >= room.maxPlayers
@@ -202,34 +237,73 @@ export function Room() {
                   ? '종료'
                   : ''}
             </div>
-            <game.Component
-              host={host}
-              options={{
-                ...room.options,
-                seed: room.seed,
-                character: me?.character ?? character,
-              }}
-            />
-            <Scoreboard players={room.players} me={playerId} finished={room.status === 'FINISHED'} />
-            {room.status === 'FINISHED' && (
-              <div className="room-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={async () => {
-                    const next = await createRoom(room.gameId)
-                    socketRef.current?.close()
-                    navigate(`/rooms/${next.id}`)
-                    window.location.reload()
+            {room.status === 'PLAYING' && spectating && watchTarget ? (
+              <Spectate
+                game={game}
+                room={room}
+                target={watchTarget}
+                state={others[watchTarget.id]}
+                canCycle={playing.length > 1}
+                onPrev={() => cycle(-1)}
+                onNext={() => cycle(1)}
+              />
+            ) : (
+              room.status === 'PLAYING' && (
+                <game.Component
+                  host={host}
+                  options={{
+                    ...room.options,
+                    seed: room.seed,
+                    character: me?.character ?? character,
                   }}
-                >
-                  새 방 만들기
-                </button>
-                <Link to="/" className="btn btn-ghost">
-                  목록으로
-                </Link>
+                />
+              )
+            )}
+            {room.status === 'PLAYING' && otherPlayers.length > 0 && (
+              <div className="room-others">
+                {otherPlayers.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={p.id === watchTarget?.id && spectating ? 'room-other selected' : 'room-other'}
+                    onClick={() => spectating && !p.finished && setWatching(p.id)}
+                  >
+                    <span className="room-other-head">
+                      <CharacterAvatar id={p.character} size={18} /> {p.nickname}
+                      <b>{p.score}</b>
+                      {p.finished && <span className="room-done"> 완료</span>}
+                    </span>
+                    {others[p.id] ? (
+                      <game.Preview
+                        state={others[p.id]}
+                        options={{ ...room.options, seed: room.seed }}
+                        character={p.character}
+                      />
+                    ) : (
+                      <span className="room-other-empty">대기 중</span>
+                    )}
+                  </button>
+                ))}
               </div>
             )}
+            {room.status === 'FINISHED' && (
+              <>
+                <Scoreboard players={room.players} me={playerId} finished />
+                <div className="room-actions">
+                  {isHost ? (
+                    <button type="button" className="btn" onClick={() => send({ type: 'rematch' })}>
+                      다시 하기
+                    </button>
+                  ) : (
+                    <p className="room-hint">방장이 다시 하기를 누르면 대기실로 돌아갑니다.</p>
+                  )}
+                  <Link to="/" className="btn btn-ghost">
+                    나가기
+                  </Link>
+                </div>
+              </>
+            )}
+            {room.status === 'PLAYING' && <Scoreboard players={room.players} me={playerId} finished={false} />}
           </div>
           {room.status === 'FINISHED' && (
             <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} />
@@ -444,6 +518,48 @@ function Chat({
           보내기
         </button>
       </form>
+    </div>
+  )
+}
+
+function Spectate({
+  game,
+  room,
+  target,
+  state,
+  canCycle,
+  onPrev,
+  onNext,
+}: {
+  game: GameDefinition
+  room: RoomSnapshot
+  target: PlayerSnapshot
+  state: Record<string, unknown> | undefined
+  canCycle: boolean
+  onPrev: () => void
+  onNext: () => void
+}) {
+  return (
+    <div className="spectate">
+      <div className="spectate-bar">
+        <button type="button" className="btn btn-ghost" onClick={onPrev} disabled={!canCycle} aria-label="이전 참가자">
+          ◀
+        </button>
+        <span className="spectate-title">
+          <CharacterAvatar id={target.character} size={24} /> {target.nickname} 관전 중 · {target.score}
+        </span>
+        <button type="button" className="btn btn-ghost" onClick={onNext} disabled={!canCycle} aria-label="다음 참가자">
+          ▶
+        </button>
+      </div>
+      <div className="spectate-view">
+        {state ? (
+          <game.Preview state={state} options={{ ...room.options, seed: room.seed }} character={target.character} />
+        ) : (
+          <p className="room-hint">아직 움직임이 없습니다.</p>
+        )}
+      </div>
+      <p className="room-hint">← → 로 다른 참가자를 볼 수 있습니다.</p>
     </div>
   )
 }

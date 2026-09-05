@@ -657,3 +657,79 @@ button.room-me {
   cursor: pointer;
   color: var(--muted);
 }
+
+/* Spectate / others */
+.room-others {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.room-other {
+  appearance: none;
+  border: 2px solid transparent;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  font: inherit;
+  text-align: left;
+}
+.room-other.selected {
+  border-color: var(--accent);
+}
+.room-other-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.room-other-head b {
+  margin-left: auto;
+  color: var(--text);
+}
+.room-other-empty {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 16px 0;
+}
+.preview-canvas {
+  width: 100%;
+  display: block;
+  border-radius: 8px;
+  background: #1e2a3a;
+}
+.preview-canvas.square {
+  aspect-ratio: 1;
+}
+.preview-canvas.tall {
+  aspect-ratio: 3 / 4;
+}
+.spectate {
+  display: grid;
+  gap: 8px;
+}
+.spectate-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.spectate-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.spectate-view {
+  max-width: min(100%, calc(100dvh - 260px));
+  margin: 0 auto;
+  width: 100%;
+}
+.spectate-view .preview-canvas.tall {
+  aspect-ratio: 4 / 5;
+}

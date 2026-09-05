@@ -49,6 +49,7 @@ export type ServerMessage =
   | { type: 'chat'; message: ChatMessage }
   | { type: 'chatHistory'; messages: ChatMessage[] }
   | { type: 'pong' }
+  | { type: 'playerState'; playerId: string; state: Record<string, unknown> }
 
 export type ClientMessage =
   | { type: 'join'; nickname: string; character: string }
@@ -59,6 +60,8 @@ export type ClientMessage =
   | { type: 'chat'; text: string }
   | { type: 'character'; character: string }
   | { type: 'ping' }
+  | { type: 'rematch' }
+  | { type: 'state'; state: Record<string, unknown> }
 
 export async function createRoom(gameId: string): Promise<RoomSnapshot> {
   const res = await fetch(`${API_URL}/api/rooms`, {
