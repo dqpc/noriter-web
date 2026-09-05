@@ -899,3 +899,23 @@ button.room-me {
     max-width: min(100%, calc(100dvh - 240px));
   }
 }
+
+.entry-find {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.entry-find-label {
+  color: var(--muted);
+  font-size: 14px;
+  flex: none;
+}
+.entry-find .input {
+  flex: 1;
+  min-width: 0;
+}
+.input.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+}
