@@ -34,15 +34,18 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   const [steps, setSteps] = useState(0)
   const [ended, setEnded] = useState<{ fell: boolean } | null>(null)
 
-  const frame = useCallback(function frame() {
-    const s = tick(stateRef.current, performance.now())
-    const wasEnded = stateRef.current.ended
-    stateRef.current = s
-    const canvas = canvasRef.current
-    if (canvas) draw(canvas, s, options)
-    if (s.ended && !wasEnded) setEnded({ fell: s.fell })
-    if (!s.ended) rafRef.current = requestAnimationFrame(frame)
-  }, [options])
+  const frame = useCallback(
+    function frame() {
+      const s = tick(stateRef.current, performance.now())
+      const wasEnded = stateRef.current.ended
+      stateRef.current = s
+      const canvas = canvasRef.current
+      if (canvas) draw(canvas, s, options)
+      if (s.ended && !wasEnded) setEnded({ fell: s.fell })
+      if (!s.ended) rafRef.current = requestAnimationFrame(frame)
+    },
+    [options],
+  )
 
   const input = useCallback(
     (action: Action) => {
@@ -133,8 +136,8 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
         </button>
       </div>
       <p className="g2048-help">
-        보는 방향에 계단이 있으면 오르기, 반대쪽이면 방향 전환. 키보드는 Shift 와 스페이스. 번개를 밟으면 에너지가
-        가득 찹니다.
+        보는 방향에 계단이 있으면 오르기, 반대쪽이면 방향 전환. 키보드는 Shift 와 스페이스. 번개를 밟으면 에너지가 가득
+        찹니다.
       </p>
     </div>
   )

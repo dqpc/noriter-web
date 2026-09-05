@@ -1,7 +1,15 @@
 import { CharacterAvatar } from './CharacterAvatar'
 import { ZODIAC } from './zodiac'
 
-export function CharacterPicker({ value, onChange, onClose }: { value: string; onChange: (id: string) => void; onClose: () => void }) {
+export function CharacterPicker({
+  value,
+  onChange,
+  onClose,
+}: {
+  value: string
+  onChange: (id: string) => void
+  onClose: () => void
+}) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>

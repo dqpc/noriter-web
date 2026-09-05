@@ -640,3 +640,20 @@ body {
   font-size: 18px;
   text-align: center;
 }
+
+.me-inline {
+  padding: 4px 10px;
+}
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+  margin-left: auto;
+}
+button.room-me {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  color: var(--muted);
+}

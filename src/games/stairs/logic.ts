@@ -106,10 +106,7 @@ export function actionFor(state: StairsState, i: number): Action {
 }
 
 function canBoost(s: StairsState, now: number): boolean {
-  return (
-    s.lastTurnAt !== null &&
-    now - s.lastTurnAt <= BOOST_WINDOW_MS
-  )
+  return s.lastTurnAt !== null && now - s.lastTurnAt <= BOOST_WINDOW_MS
 }
 
 function boost(s: StairsState, now: number): StairsState {
