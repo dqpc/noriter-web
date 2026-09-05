@@ -1,7 +1,19 @@
 import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { CharacterAvatar, characterSvg, findCharacter } from '../../characters'
 import type { TurnProps } from '../types'
-import { CENTER, CORNERS, FINISH, NODE_POS, THROW_LABEL, routeOf, toYutView, type YutMove } from './board'
+import {
+  CENTER,
+  CORNERS,
+  FINISH,
+  NODE_POS,
+  THROW_LABEL,
+  routeOf,
+  stepsBetween,
+  toYutView,
+  type YutMove,
+  type YutPieceView,
+  type YutView,
+} from './board'
 
 const TOSS_MS = 1400
 const STICK_DELAY_MS = 90
@@ -11,6 +23,8 @@ const RESULT_MS = 1100
 const STICK_SX = ['-28px', '-8px', '10px', '26px']
 const STICK_RZ = ['-14deg', '6deg', '-5deg', '12deg']
 const SPARKS: Record<string, number> = { BACKDO: 8, DO: 0, GAE: 0, GEOL: 6, YUT: 10, MO: 16 }
+const STEP_MS = 190
+const CAPTURE_MS = 750
 
 function useNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now())
@@ -49,6 +63,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
 
   const myTurn = me !== null && v.turn === me && !v.ended
   const bots = v.players.filter((p) => p.bot)
+  const motion = useMotion(v)
   const botTurn = !v.ended && bots.some((p) => p.id === v.turn)
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
   const nameOf = (id: string) => byId.get(id)?.nickname ?? id
@@ -139,13 +154,14 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const remainMs = v.deadline ? Math.max(0, new Date(v.deadline).getTime() - now) : 0
 
   return (
-    <div className="yut">
+    <div className={`yut ${v.ended ? '' : myTurn ? 'my-turn' : 'their-turn'}`}>
       <div className="yut-top">
         <div className="yut-turn">
           {v.ended ? (
             <span>게임 종료</span>
           ) : (
             <>
+              <span className={`yut-turn-badge ${myTurn ? 'mine' : ''}`}>{myTurn ? '내 차례' : '상대 차례'}</span>
               <CharacterAvatar id={characterOf(v.turn)} size={26} />
               <b>{nameOf(v.turn)}</b>
               <span className="yut-turn-phase">
@@ -219,18 +235,18 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
             <polyline key={r.key} points={r.points} className="yut-route" />
           ))}
           {v.players.map((p) =>
-            groupPieces(p.pieces).map((g) => {
+            groupPieces(displayPieces(p, motion)).map((g) => {
               const [x, y] = NODE_POS[g.node]
               const mine = p.id === me
-              const selectable = active && g.ids.some((id) => candidates.some((m) => m.pieceId === id))
+              const selectable = !g.moving && active && g.ids.some((id) => candidates.some((m) => m.pieceId === id))
               const selected = selPiece !== null && g.ids.includes(selPiece as number)
               const offset = playerOffset(v.players, p.id)
               return (
                 <g
-                  key={`${p.id}-${g.node}`}
+                  key={`${p.id}-${g.ids.join('.')}`}
                   className={pieceClass(
                     g.ids[0],
-                    `yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`,
+                    `yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''} ${g.moving ? 'moving' : ''}`,
                   )}
                   transform={`translate(${x + offset[0]} ${y + offset[1] - 18})`}
                   onClick={() => selectable && pickPiece(g.ids[0])}
@@ -259,6 +275,25 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
               )
             }),
           )}
+          {motion.captures.map((c) => {
+            const [x, y] = NODE_POS[c.node]
+            return (
+              <g key={c.key} className="yut-capture" transform={`translate(${x} ${y - 18})`}>
+                <circle className="yut-capture-ring" r="14" />
+                <image
+                  className="yut-capture-piece"
+                  href={`data:image/svg+xml;utf8,${encodeURIComponent(characterSvg(findCharacter(characterOf(c.playerId)), 'R'))}`}
+                  x="-16"
+                  y="-16"
+                  width="32"
+                  height="32"
+                />
+                <text className="yut-capture-text" y="-30">
+                  잡았다!
+                </text>
+              </g>
+            )
+          })}
           {newMoves.length > 0 && (
             <g
               className={pieceClass(
@@ -416,16 +451,127 @@ function resultLabel(ms: YutMove[]): string {
   return Array.from(new Set(ms.map((m) => THROW_LABEL[m.result] ?? m.result))).join('/')
 }
 
-function groupPieces(pieces: { id: number; node: number; path: string | null; index: number; finished: boolean }[]) {
-  const groups = new Map<string, { node: number; ids: number[] }>()
+interface DisplayPiece {
+  id: number
+  node: number
+  moving: boolean
+}
+
+interface Motion {
+  overrides: Record<string, number>
+  linger: { playerId: string; id: number; node: number }[]
+  captures: { key: string; playerId: string; node: number }[]
+}
+
+function pieceKey(playerId: string, id: number): string {
+  return `${playerId}:${id}`
+}
+
+function displayPieces(p: { id: string; pieces: YutPieceView[] }, motion: Motion): DisplayPiece[] {
+  const out: DisplayPiece[] = []
+  for (const pc of p.pieces) {
+    const override = motion.overrides[pieceKey(p.id, pc.id)]
+    if (override !== undefined) out.push({ id: pc.id, node: override, moving: true })
+    else if (!pc.finished && pc.node >= 0) out.push({ id: pc.id, node: pc.node, moving: false })
+  }
+  for (const l of motion.linger) if (l.playerId === p.id) out.push({ id: l.id, node: l.node, moving: false })
+  return out
+}
+
+function groupPieces(pieces: DisplayPiece[]) {
+  const groups = new Map<string, { node: number; ids: number[]; moving: boolean }>()
   for (const p of pieces) {
-    if (p.finished || p.node < 0) continue
-    const key = `${p.path}:${p.index}`
-    const g = groups.get(key) ?? { node: p.node, ids: [] }
+    const key = `${p.node}:${p.moving}`
+    const g = groups.get(key) ?? { node: p.node, ids: [], moving: p.moving }
     g.ids.push(p.id)
     groups.set(key, g)
   }
   return [...groups.values()]
+}
+
+/** 서버 판 변화를 한 칸씩 걷는 연출로 바꾼다. 잡힌 말은 잡는 말이 도착할 때까지 남겨 뒀다가 터뜨린다 */
+type MotionStep = [number, (m: Motion) => Motion]
+interface MotionPlan {
+  initial: Motion
+  timeline: MotionStep[]
+}
+const IDLE: Motion = { overrides: {}, linger: [], captures: [] }
+
+function planMotion(prev: YutView, v: YutView): MotionPlan | null {
+  const overrides: Record<string, number> = {}
+  const timeline: MotionStep[] = []
+  let arrival = 0
+  for (const p of v.players) {
+    const before = prev.players.find((x) => x.id === p.id)
+    if (!before) continue
+    for (const pc of p.pieces) {
+      const old = before.pieces.find((x) => x.id === pc.id)
+      if (!old || old.finished) continue
+      const entering = old.path === null && pc.path !== null
+      if (!entering && (old.path === null || (old.path === pc.path && old.index === pc.index && !pc.finished))) continue
+      const route = stepsBetween(old.path ?? 'RING', old.path === null ? 0 : old.index, pc)
+      if (route.length === 0) continue
+      const key = pieceKey(p.id, pc.id)
+      overrides[key] = old.path === null ? 0 : old.node
+      route.forEach((node, i) =>
+        timeline.push([(i + 1) * STEP_MS, (m) => ({ ...m, overrides: { ...m.overrides, [key]: node } })]),
+      )
+      const done = (route.length + 1) * STEP_MS
+      arrival = Math.max(arrival, done)
+      timeline.push([
+        done,
+        (m) => {
+          const next = { ...m.overrides }
+          delete next[key]
+          return { ...m, overrides: next }
+        },
+      ])
+    }
+  }
+  const ev = v.lastEvent
+  const linger: Motion['linger'] = []
+  if (ev?.type === 'move' && ev.captured === true && typeof ev.dest === 'number') {
+    for (const p of prev.players) {
+      if (p.id === ev.player) continue
+      for (const pc of p.pieces) {
+        if (pc.node !== ev.dest || pc.path === null) continue
+        const now = v.players.find((x) => x.id === p.id)?.pieces.find((x) => x.id === pc.id)
+        if (now && now.path === null) linger.push({ playerId: p.id, id: pc.id, node: pc.node })
+      }
+    }
+  }
+  if (Object.keys(overrides).length === 0 && linger.length === 0) return null
+  if (linger.length > 0) {
+    const captures = linger.map((l) => ({
+      key: `${pieceKey(l.playerId, l.id)}:${Date.now()}`,
+      playerId: l.playerId,
+      node: l.node,
+    }))
+    timeline.push([arrival, (m) => ({ ...m, linger: [], captures })])
+    timeline.push([arrival + CAPTURE_MS, (m) => ({ ...m, captures: [] })])
+  }
+  return { initial: { overrides, linger, captures: [] }, timeline }
+}
+
+function useMotion(v: YutView): Motion {
+  const [state, setState] = useState<{ v: YutView | null; plan: MotionPlan | null; motion: Motion }>({
+    v: null,
+    plan: null,
+    motion: IDLE,
+  })
+  if (state.v !== v) {
+    const plan = state.v ? planMotion(state.v, v) : null
+    setState({ v, plan, motion: plan ? plan.initial : IDLE })
+  }
+  const plan = state.plan
+  useEffect(() => {
+    if (!plan) return
+    const timers = plan.timeline.map(([at, apply]) =>
+      window.setTimeout(() => setState((s) => ({ ...s, motion: apply(s.motion) })), at),
+    )
+    return () => timers.forEach((t) => window.clearTimeout(t))
+  }, [plan])
+  return state.motion
 }
 
 function playerOffset(players: { id: string }[], id: string): [number, number] {

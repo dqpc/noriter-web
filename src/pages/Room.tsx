@@ -40,6 +40,8 @@ export function Room() {
   const [others, setOthers] = useState<Record<string, Record<string, unknown>>>({})
   const [watching, setWatching] = useState<string | null>(null)
   const [gameState, setGameState] = useState<Record<string, unknown> | null>(null)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatSeen, setChatSeen] = useState(0)
   const socketRef = useRef<RoomSocket | null>(null)
   const statusRef = useRef<RoomStatus | null>(null)
 
@@ -365,6 +367,41 @@ export function Room() {
               ))}
             </div>
           )}
+          <button
+            type="button"
+            className="chat-fab"
+            aria-label="채팅 열기"
+            onClick={() => {
+              setChatOpen(true)
+              setChatSeen(chat.length)
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden>
+              <path
+                fill="currentColor"
+                d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+              />
+            </svg>
+            {!chatOpen && chat.length > chatSeen && <span className="chat-fab-badge">{chat.length - chatSeen}</span>}
+          </button>
+          {chatOpen && (
+            <div className="chat-sheet" role="dialog" aria-label="채팅">
+              <div className="chat-sheet-head">
+                <span>채팅</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  onClick={() => {
+                    setChatOpen(false)
+                    setChatSeen(chat.length)
+                  }}
+                >
+                  닫기
+                </button>
+              </div>
+              <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -562,11 +599,13 @@ function Chat({
           m.system ? (
             <p key={i} className="chat-system">
               {m.text}
+              <time className="chat-time">{formatClock(m.sentAt)}</time>
             </p>
           ) : (
             <p key={i} className={m.playerId === me ? 'chat-msg me' : 'chat-msg'}>
               <span className="chat-name">{m.nickname}</span>
               <span className="chat-text">{m.text}</span>
+              <time className="chat-time">{formatClock(m.sentAt)}</time>
             </p>
           ),
         )}
@@ -586,6 +625,19 @@ function Chat({
       </form>
     </div>
   )
+}
+
+const clockFormat = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul',
+  hour12: false,
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+})
+
+function formatClock(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : clockFormat.format(d)
 }
 
 function Spectate({

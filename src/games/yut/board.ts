@@ -59,6 +59,29 @@ export function routeOf(path: string | null, index: number, m: YutMove): number[
   return out
 }
 
+/** 이전 위치에서 새 위치까지 실제로 지나가는 칸. 서버 판정 뒤 한 칸씩 움직이는 연출에 쓴다 */
+export function stepsBetween(
+  oldPath: string,
+  oldIndex: number,
+  next: { path: string | null; index: number; node: number; finished: boolean },
+): number[] {
+  const oldNodes = PATHS[oldPath]
+  if (next.finished) return oldNodes.slice(oldIndex + 1)
+  if (next.path === null) return []
+  if (next.path === oldPath) {
+    if (next.index > oldIndex) return oldNodes.slice(oldIndex + 1, next.index + 1)
+    return [next.node]
+  }
+  const nodes = PATHS[next.path]
+  if (nodes[0] === oldNodes[oldIndex]) return nodes.slice(1, next.index + 1)
+  const out: number[] = []
+  for (let i = oldIndex + 1; i < oldNodes.length; i++) {
+    out.push(oldNodes[i])
+    if (oldNodes[i] === next.node) return out
+  }
+  return [next.node]
+}
+
 export const CORNERS = new Set([0, 5, 10, 15])
 export const CENTER = 22
 export const FINISH = -2
