@@ -62,11 +62,27 @@ body {
   margin: 0 auto;
 }
 .visits {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 14px;
+  row-gap: 2px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
-.visits b {
+.visits dt {
+  margin: 0;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.visits dd {
+  margin: 0;
+  text-align: right;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 700;
+}
+.visits-today {
+  color: var(--accent);
 }
 
 .page-title {
