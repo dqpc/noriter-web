@@ -38,6 +38,7 @@ export function Room() {
   const [picking, setPicking] = useState(false)
   const [others, setOthers] = useState<Record<string, Record<string, unknown>>>({})
   const [watching, setWatching] = useState<string | null>(null)
+  const [gameState, setGameState] = useState<Record<string, unknown> | null>(null)
   const socketRef = useRef<RoomSocket | null>(null)
   const statusRef = useRef<RoomStatus | null>(null)
 
@@ -73,8 +74,10 @@ export function Room() {
           if (m.room.status === 'WAITING' || m.room.status === 'COUNTDOWN') {
             setOthers({})
             setWatching(null)
+            setGameState(null)
           }
         } else if (m.type === 'playerState') setOthers((prev) => ({ ...prev, [m.playerId]: m.state }))
+        else if (m.type === 'gameState') setGameState(m.state)
         else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
         else if (m.type === 'chatHistory') setChat(m.messages)
         else if (m.type === 'error') setError(m.message)
@@ -92,6 +95,8 @@ export function Room() {
     setCharacter(id)
     if (joined) send({ type: 'character', character: id })
   }
+
+  const sendAction = useCallback((action: Record<string, unknown>) => send({ type: 'action', action }), [send])
 
   const host = useMemo<GameHost>(
     () => ({
@@ -156,6 +161,7 @@ export function Room() {
   const isHost = playerId !== null && room.hostId === playerId
   const otherPlayers = room.players.filter((p) => p.id !== playerId)
   const inGame = room.status === 'COUNTDOWN' || room.status === 'PLAYING' || room.status === 'FINISHED'
+  const turnBased = room.game.turnBased && Boolean(game?.Turn)
   const playing = otherPlayers.filter((p) => !p.finished)
   const spectating = Boolean(me?.finished) && playing.length > 0
   const watchTarget = playing.find((p) => p.id === watching) ?? playing[0] ?? null
@@ -243,7 +249,13 @@ export function Room() {
                     : ''}
             </div>
             <div className="stage">
-              {room.status !== 'COUNTDOWN' && spectating && watchTarget ? (
+              {turnBased && game.Turn ? (
+                gameState ? (
+                  <game.Turn view={gameState} me={playerId} players={room.players} onAction={sendAction} />
+                ) : (
+                  <p className="room-hint">판을 준비하는 중…</p>
+                )
+              ) : room.status !== 'COUNTDOWN' && spectating && watchTarget ? (
                 <Spectate
                   game={game}
                   room={room}
@@ -253,7 +265,7 @@ export function Room() {
                   onPrev={() => cycle(-1)}
                   onNext={() => cycle(1)}
                 />
-              ) : (
+              ) : game.Component ? (
                 <game.Component
                   key={room.seed}
                   host={host}
@@ -264,7 +276,7 @@ export function Room() {
                     frozen: room.status !== 'PLAYING',
                   }}
                 />
-              )}
+              ) : null}
               {room.status === 'COUNTDOWN' && (
                 <div className="stage-overlay countdown">
                   <span key={countdownLeft} className="countdown-num">
@@ -307,9 +319,11 @@ export function Room() {
                 </div>
               )}
             </div>
-            {room.status !== 'FINISHED' && <Scoreboard players={room.players} me={playerId} finished={false} />}
+            {!turnBased && room.status !== 'FINISHED' && (
+              <Scoreboard players={room.players} me={playerId} finished={false} />
+            )}
           </div>
-          {room.status !== 'WAITING' && otherPlayers.length > 0 && (
+          {!turnBased && room.status !== 'WAITING' && otherPlayers.length > 0 && (
             <div className="room-others">
               {otherPlayers.map((p) => (
                 <button
@@ -323,7 +337,7 @@ export function Room() {
                     <b>{p.score}</b>
                     {p.finished && <span className="room-done"> 완료</span>}
                   </span>
-                  {others[p.id] ? (
+                  {others[p.id] && game.Preview ? (
                     <game.Preview
                       state={others[p.id]}
                       options={{ ...room.options, seed: room.seed }}
@@ -372,7 +386,9 @@ function Lobby({
     { length: room.game.maxPlayersLimit - room.game.minPlayers + 1 },
     (_, i) => room.game.minPlayers + i,
   )
-  const canStart = room.players.length >= room.game.minPlayers
+  const duplicate =
+    room.game.uniqueCharacters && new Set(room.players.map((p) => p.character)).size < room.players.length
+  const canStart = room.players.length >= room.game.minPlayers && !duplicate
 
   return (
     <div className="room-lobby">
@@ -449,6 +465,9 @@ function Lobby({
             </div>
           </div>
         ))}
+        {room.game.uniqueCharacters && duplicate && (
+          <p className="room-error">이 게임은 캐릭터가 겹치면 안 됩니다. 이름 옆 바꾸기로 바꿔 주세요.</p>
+        )}
         {room.game.matchDurationSeconds && (
           <p className="room-hint">제한 시간 {Math.round(room.game.matchDurationSeconds / 60)}분</p>
         )}
@@ -456,7 +475,7 @@ function Lobby({
 
       {isHost ? (
         <button type="button" className="btn room-start" disabled={!canStart} onClick={() => send({ type: 'start' })}>
-          {canStart ? '시작' : `${room.game.minPlayers}명 이상 필요`}
+          {canStart ? '시작' : duplicate ? '같은 캐릭터가 있어요' : `${room.game.minPlayers}명 이상 필요`}
         </button>
       ) : (
         <p className="room-hint">방장이 시작하기를 기다리는 중…</p>
@@ -583,7 +602,7 @@ function Spectate({
         </button>
       </div>
       <div className="spectate-view">
-        {state ? (
+        {state && game.Preview ? (
           <game.Preview state={state} options={{ ...room.options, seed: room.seed }} character={target.character} />
         ) : (
           <p className="room-hint">아직 움직임이 없습니다.</p>
