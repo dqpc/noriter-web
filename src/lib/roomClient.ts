@@ -1,4 +1,3 @@
-import type { GameMode } from '../games/types'
 import { API_URL, WS_URL } from './api'
 
 export type RoomStatus = 'WAITING' | 'COUNTDOWN' | 'PLAYING' | 'FINISHED'
@@ -18,14 +17,12 @@ export interface GameInfo {
   maxPlayersLimit: number
   matchDurationSeconds: number | null
   optionChoices: Record<string, OptionValue[]>
-  modes: GameMode[]
 }
 
 export interface RoomSnapshot {
   id: string
   gameId: string
   game: GameInfo
-  mode: GameMode
   status: RoomStatus
   hostId: string | null
   maxPlayers: number
@@ -50,7 +47,6 @@ export type ServerMessage =
   | { type: 'error'; message: string }
   | { type: 'chat'; message: ChatMessage }
   | { type: 'chatHistory'; messages: ChatMessage[] }
-  | { type: 'gameState'; state: Record<string, unknown> }
 
 export type ClientMessage =
   | { type: 'join'; nickname: string }
@@ -59,13 +55,12 @@ export type ClientMessage =
   | { type: 'score'; score: number }
   | { type: 'finish'; score: number }
   | { type: 'chat'; text: string }
-  | { type: 'input'; input: Record<string, unknown> }
 
-export async function createRoom(gameId: string, mode: GameMode = 'VERSUS'): Promise<RoomSnapshot> {
+export async function createRoom(gameId: string): Promise<RoomSnapshot> {
   const res = await fetch(`${API_URL}/api/rooms`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ gameId, mode }),
+    body: JSON.stringify({ gameId }),
   })
   if (!res.ok) throw new Error((await res.text()) || `방 생성 실패 (${res.status})`)
   return res.json()
