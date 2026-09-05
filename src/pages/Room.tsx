@@ -151,9 +151,12 @@ export function Room() {
   const me = room.players.find((p) => p.id === playerId)
   const isHost = playerId !== null && room.hostId === playerId
   const otherPlayers = room.players.filter((p) => p.id !== playerId)
+  const inGame = room.status === 'COUNTDOWN' || room.status === 'PLAYING' || room.status === 'FINISHED'
   const playing = otherPlayers.filter((p) => !p.finished)
   const spectating = Boolean(me?.finished) && playing.length > 0
   const watchTarget = playing.find((p) => p.id === watching) ?? playing[0] ?? null
+  const countdownLeft = Math.max(0, Math.ceil((new Date(room.startAt ?? 0).getTime() - now) / 1000))
+  const ranked = [...room.players].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || b.score - a.score)
 
   if (!joined) {
     const full = room.players.length >= room.maxPlayers
@@ -212,24 +215,15 @@ export function Room() {
       {connection === 'closed' && <p className="room-error">방이 없어졌습니다. 목록으로 돌아가 주세요.</p>}
 
       {room.status === 'WAITING' && (
-        <div className="room-layout">
+        <div className="room-layout fade-in">
           <Lobby room={room} isHost={isHost} me={playerId} send={send} onPick={() => setPicking(true)} />
           <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} />
         </div>
       )}
 
-      {room.status === 'COUNTDOWN' && (
-        <div className="room-countdown">
-          <p>곧 시작합니다</p>
-          <p className="room-countdown-num">
-            {Math.max(0, Math.ceil((new Date(room.startAt ?? 0).getTime() - now) / 1000))}
-          </p>
-        </div>
-      )}
-
-      {(room.status === 'PLAYING' || room.status === 'FINISHED') && game && (
-        <div className={room.status === 'FINISHED' ? 'room-layout' : 'room-live'}>
-          {room.status === 'PLAYING' && (
+      {inGame && game && (
+        <div className="room-live fade-in">
+          {(room.status === 'PLAYING' || room.status === 'FINISHED') && (
             <div className="room-live-chat">
               <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
             </div>
@@ -240,50 +234,78 @@ export function Room() {
                 ? `남은 시간 ${formatDuration(Math.max(0, new Date(room.endAt).getTime() - now))}`
                 : room.status === 'FINISHED'
                   ? '종료'
-                  : ''}
+                  : room.status === 'COUNTDOWN'
+                    ? '준비'
+                    : ''}
             </div>
-            {room.status === 'PLAYING' && spectating && watchTarget ? (
-              <Spectate
-                game={game}
-                room={room}
-                target={watchTarget}
-                state={others[watchTarget.id]}
-                canCycle={playing.length > 1}
-                onPrev={() => cycle(-1)}
-                onNext={() => cycle(1)}
-              />
-            ) : (
-              room.status === 'PLAYING' && (
+            <div className="stage">
+              {room.status !== 'COUNTDOWN' && spectating && watchTarget ? (
+                <Spectate
+                  game={game}
+                  room={room}
+                  target={watchTarget}
+                  state={others[watchTarget.id]}
+                  canCycle={playing.length > 1}
+                  onPrev={() => cycle(-1)}
+                  onNext={() => cycle(1)}
+                />
+              ) : (
                 <game.Component
+                  key={room.seed}
                   host={host}
                   options={{
                     ...room.options,
                     seed: room.seed,
                     character: me?.character ?? character,
+                    frozen: room.status !== 'PLAYING',
                   }}
                 />
-              )
-            )}
-            {room.status === 'FINISHED' && (
-              <>
-                <Scoreboard players={room.players} me={playerId} finished />
-                <div className="room-actions">
-                  {isHost ? (
-                    <button type="button" className="btn" onClick={() => send({ type: 'rematch' })}>
-                      다시 하기
-                    </button>
-                  ) : (
-                    <p className="room-hint">방장이 다시 하기를 누르면 대기실로 돌아갑니다.</p>
-                  )}
-                  <Link to="/" className="btn btn-ghost">
-                    나가기
-                  </Link>
+              )}
+              {room.status === 'COUNTDOWN' && (
+                <div className="stage-overlay countdown">
+                  <span key={countdownLeft} className="countdown-num">
+                    {countdownLeft}
+                  </span>
                 </div>
-              </>
-            )}
-            {room.status === 'PLAYING' && <Scoreboard players={room.players} me={playerId} finished={false} />}
+              )}
+              {room.status === 'FINISHED' && (
+                <div className="stage-overlay results">
+                  <div className="results-panel">
+                    <p className="results-title">결과</p>
+                    <ol className="results-list">
+                      {ranked.map((p, i) => (
+                        <li
+                          key={p.id}
+                          className={p.id === playerId ? 'me' : ''}
+                          style={{ animationDelay: `${0.35 + i * 0.12}s` }}
+                        >
+                          <span className="room-rank">{p.rank ?? i + 1}등</span>
+                          <span className="room-name">
+                            <CharacterAvatar id={p.character} size={24} /> {p.nickname}
+                          </span>
+                          <span className="room-score">{p.score}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    <div className="room-actions">
+                      {isHost ? (
+                        <button type="button" className="btn" onClick={() => send({ type: 'rematch' })}>
+                          다시 하기
+                        </button>
+                      ) : (
+                        <p className="room-hint">방장이 다시 하기를 누르면 대기실로 돌아갑니다.</p>
+                      )}
+                      <Link to="/" className="btn btn-ghost">
+                        나가기
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {room.status !== 'FINISHED' && <Scoreboard players={room.players} me={playerId} finished={false} />}
           </div>
-          {room.status === 'PLAYING' && otherPlayers.length > 0 && (
+          {room.status !== 'WAITING' && otherPlayers.length > 0 && (
             <div className="room-others">
               {otherPlayers.map((p) => (
                 <button
@@ -309,9 +331,6 @@ export function Room() {
                 </button>
               ))}
             </div>
-          )}
-          {room.status === 'FINISHED' && (
-            <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} />
           )}
         </div>
       )}
