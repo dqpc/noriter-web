@@ -3,8 +3,6 @@ import type { CardShow } from './cardShow'
 
 const DEAL_STAGGER_MS = 160
 const PILE = 5
-const FAN_X = ['-2.2', '-1.1', '0', '1.1', '2.2']
-const FAN_R = ['-16deg', '-8deg', '0deg', '8deg', '16deg']
 
 export function YutCards({
   show,
@@ -44,10 +42,12 @@ export function YutCards({
       {show.stage === 'deal' && (
         <>
           <div className="yut-deck angel">
-            <span>천사</span>
+            <span>천사 덱</span>
+            <i className="yut-deck-count">4장</i>
           </div>
           <div className="yut-deck devil">
-            <span>악마</span>
+            <span>악마 덱</span>
+            <i className="yut-deck-count">1장</i>
           </div>
         </>
       )}
@@ -61,10 +61,10 @@ export function YutCards({
             canPick ? 'pickable' : '',
             show.stage === 'reveal' ? (picked ? 'picked' : 'faded') : '',
           ].join(' ')
+          const slotX = 50 + (i - 2) * 19
           const style = {
-            '--fx': FAN_X[i],
-            '--fr': FAN_R[i],
-            '--from': fromDevil ? '1' : '-1',
+            '--i': i,
+            '--sx': `${(fromDevil ? 87.5 : 12.5) - slotX}cqw`,
             '--dl': `${i * DEAL_STAGGER_MS}ms`,
           } as CSSProperties
           return (

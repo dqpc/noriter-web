@@ -302,9 +302,9 @@ export function Room() {
             </div>
             <div className="stage">
               {turnBased && game.Turn ? (
-                gameState ? (
+                gameState || game.idleView ? (
                   <game.Turn
-                    view={gameState}
+                    view={gameState ?? game.idleView!(room.players.map((p) => p.id))}
                     me={playerId}
                     players={room.players}
                     onAction={sendAction}

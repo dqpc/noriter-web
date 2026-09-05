@@ -26,8 +26,9 @@ const RESULT_MS = 1100
 const STICK_SX = ['-28px', '-8px', '10px', '26px']
 const STICK_RZ = ['-14deg', '6deg', '-5deg', '12deg']
 const SPARKS: Record<string, number> = { BACKDO: 8, DO: 0, GAE: 0, GEOL: 6, YUT: 10, MO: 16 }
-const STEP_MS = 190
+const STEP_MS = 260
 const CAPTURE_MS = 750
+const BLOCK_MS = 900
 const THROW_CHOICES = ['BACKDO', 'DO', 'GAE', 'GEOL', 'YUT', 'MO']
 
 function useNow(active: boolean): number {
@@ -74,7 +75,12 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
   const now = useNow(!v.ended) + clockOffset
 
   const motion = useMotion(v)
-  const busy = Object.keys(motion.overrides).length > 0 || motion.linger.length > 0 || motion.captures.length > 0
+  const busy =
+    Object.keys(motion.overrides).length > 0 ||
+    motion.linger.length > 0 ||
+    motion.captures.length > 0 ||
+    motion.blocks.length > 0
+  const blockNodes = new Set(motion.blocks.map((b) => b.node))
   const cardShow = useCardShow(v, busy || animating)
   const cardOpen = cardShow !== null
   const [shown, setShown] = useState({ turn: v.turn, phase: v.phase, actor: v.actor })
@@ -213,10 +219,18 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
           ) : (
             <>
               <span className={`yut-turn-badge ${myTurnShown ? 'mine' : ''}`}>
-                {phase === 'CARD' ? (myTurnShown ? '카드 선택' : '카드 대기') : myTurnShown ? '내 차례' : '상대 차례'}
+                {actor === ''
+                  ? '준비'
+                  : phase === 'CARD'
+                    ? myTurnShown
+                      ? '카드 선택'
+                      : '카드 대기'
+                    : myTurnShown
+                      ? '내 차례'
+                      : '상대 차례'}
               </span>
-              <CharacterAvatar id={characterOf(actor)} size={26} />
-              <b>{nameOf(actor)}</b>
+              {actor !== '' && <CharacterAvatar id={characterOf(actor)} size={26} />}
+              <b>{actor === '' ? '곧 시작합니다' : nameOf(actor)}</b>
               <span className="yut-turn-phase">
                 {phase === 'CARD'
                   ? myTurnShown
@@ -232,7 +246,7 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
                         ? '던지는 중'
                         : '말 고르는 중'}
               </span>
-              <span className="yut-timer">{Math.ceil(remainMs / 1000)}s</span>
+              {actor !== '' && <span className="yut-timer">{Math.ceil(remainMs / 1000)}s</span>}
             </>
           )}
         </div>
@@ -339,13 +353,14 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
               const selectable = !g.moving && active && g.ids.some((id) => candidates.some((m) => m.pieceId === id))
               const selected = selPiece !== null && g.ids.includes(selPiece as number)
               const shielded = p.effects.some((e) => e.id === 'SHIELD')
+              const blocking = shielded && blockNodes.has(g.node)
               const offset = playerOffset(v.players, p.id)
               return (
                 <g
                   key={`${p.id}-${g.ids.join('.')}`}
                   className={pieceClass(
                     g.ids[0],
-                    `yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''} ${g.moving ? 'moving' : ''} ${shielded ? 'shielded' : ''}`,
+                    `yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''} ${g.moving ? 'moving' : ''} ${shielded ? 'shielded' : ''} ${blocking ? 'blocking' : ''}`,
                   )}
                   transform={`translate(${x + offset[0]} ${y + offset[1] - 18})`}
                   onClick={() => selectable && pickPiece(g.ids[0])}
@@ -375,6 +390,18 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
               )
             }),
           )}
+          {motion.blocks.map((b) => {
+            const [x, y] = NODE_POS[b.node]
+            return (
+              <g key={b.key} className="yut-block" transform={`translate(${x} ${y - 18})`}>
+                <circle className="yut-block-ring" r="16" />
+                <circle className="yut-block-ring r2" r="16" />
+                <text className="yut-block-text" y="-32">
+                  막았다!
+                </text>
+              </g>
+            )
+          })}
           {motion.captures.map((c) => {
             const [x, y] = NODE_POS[c.node]
             return (
@@ -604,6 +631,7 @@ interface Motion {
   overrides: Record<string, number>
   linger: { playerId: string; id: number; node: number }[]
   captures: { key: string; playerId: string; node: number }[]
+  blocks: { key: string; node: number }[]
 }
 
 function pieceKey(playerId: string, id: number): string {
@@ -638,7 +666,7 @@ interface MotionPlan {
   initial: Motion
   timeline: MotionStep[]
 }
-const IDLE: Motion = { overrides: {}, linger: [], captures: [] }
+const IDLE: Motion = { overrides: {}, linger: [], captures: [], blocks: [] }
 
 function planMotion(prev: YutView, v: YutView): MotionPlan | null {
   const ev = v.lastEvent
@@ -685,7 +713,13 @@ function planMotion(prev: YutView, v: YutView): MotionPlan | null {
       }
     }
   }
-  if (Object.keys(overrides).length === 0 && linger.length === 0) return null
+  const blocked = ev && ev.blocked === true && typeof ev.dest === 'number' ? (ev.dest as number) : null
+  if (Object.keys(overrides).length === 0 && linger.length === 0 && blocked === null) return null
+  if (blocked !== null) {
+    const key = `block:${blocked}:${Date.now()}`
+    timeline.push([arrival, (m) => ({ ...m, blocks: [...m.blocks, { key, node: blocked }] })])
+    timeline.push([arrival + BLOCK_MS, (m) => ({ ...m, blocks: m.blocks.filter((b) => b.key !== key) })])
+  }
   if (linger.length > 0) {
     const captures = linger.map((l) => ({
       key: `${pieceKey(l.playerId, l.id)}:${Date.now()}`,
@@ -695,7 +729,7 @@ function planMotion(prev: YutView, v: YutView): MotionPlan | null {
     timeline.push([arrival, (m) => ({ ...m, linger: [], captures })])
     timeline.push([arrival + CAPTURE_MS, (m) => ({ ...m, captures: [] })])
   }
-  return { initial: { overrides, linger, captures: [] }, timeline }
+  return { initial: { overrides, linger, captures: [], blocks: [] }, timeline }
 }
 
 function useMotion(v: YutView): Motion {
