@@ -83,8 +83,8 @@ export function GameEntry() {
         <input
           className="input mono"
           value={code}
-          maxLength={8}
-          placeholder="방 코드 8자"
+          maxLength={4}
+          placeholder="방 코드 4자"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
