@@ -27,7 +27,7 @@ function readSeed(options?: GameOptions): number {
 
 export function GameStairs({ host, options }: { host: GameHost; options?: GameOptions }) {
   const roomMode = options?.seed !== undefined
-  const [initial] = useState(() => newStairs(readSeed(options), performance.now()))
+  const [initial] = useState(() => newStairs(readSeed(options), performance.now(), roomMode))
   const stateRef = useRef<StairsState>(initial)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
@@ -65,12 +65,13 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
 
   const restart = useCallback(() => {
     cancelAnimationFrame(rafRef.current)
-    stateRef.current = newStairs(readSeed(options), performance.now())
+    stateRef.current = newStairs(readSeed(options), performance.now(), roomMode)
     setSteps(0)
     setEnded(null)
     const canvas = canvasRef.current
     if (canvas) draw(canvas, stateRef.current, options)
-  }, [options])
+    if (roomMode) rafRef.current = requestAnimationFrame(frame)
+  }, [options, roomMode, frame])
 
   useEffect(() => {
     host.onScore(steps)
@@ -86,13 +87,14 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
     const canvas = canvasRef.current
     if (!canvas) return
     draw(canvas, stateRef.current, options)
+    if (stateRef.current.startedAt !== null) rafRef.current = requestAnimationFrame(frame)
     const ro = new ResizeObserver(() => draw(canvas, stateRef.current, options))
     ro.observe(canvas)
     return () => {
       ro.disconnect()
       cancelAnimationFrame(rafRef.current)
     }
-  }, [options])
+  }, [options, frame])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
