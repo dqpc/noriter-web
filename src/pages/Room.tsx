@@ -293,7 +293,7 @@ export function Room() {
                           다시 하기
                         </button>
                       ) : (
-                        <p className="room-hint">방장이 다시 하기를 누르면 대기실로 돌아갑니다.</p>
+                        <p className="room-hint">방장이 다시 하기를 누르면 바로 다시 시작합니다.</p>
                       )}
                       <Link to="/" className="btn btn-ghost">
                         나가기
