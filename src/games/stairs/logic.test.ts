@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  BOOST_COOLDOWN_MS,
   BOOST_STEPS,
   BOOST_WINDOW_MS,
   ITEM_MIN_STEP,
@@ -77,15 +76,11 @@ describe('stairs', () => {
     expect(displaySteps(s, t + BOOST_WINDOW_MS + 1000)).toBe(s.steps)
     expect(s.energy).toBeGreaterThanOrEqual(before.energy)
 
-    s = press(s, 'TURN', t + 500)
-    const again = press(s, 'CLIMB', t + 520)
-    expect(again.steps - s.steps).toBeLessThanOrEqual(1)
-
-    s = press(s, actionFor(s, s.steps + 1), t + BOOST_COOLDOWN_MS + 600)
     if (actionFor(s, s.steps + 1) === 'TURN') {
-      const t2 = t + BOOST_COOLDOWN_MS + 900
+      const t2 = t + 900
       s = press(s, 'TURN', t2)
       expect(press(s, 'CLIMB', t2 + BOOST_WINDOW_MS + 1).steps - s.steps).toBeLessThanOrEqual(1)
+      expect(press(s, 'CLIMB', t2 + 50).steps - s.steps).toBe(BOOST_STEPS)
     }
   })
   it('에너지는 최대치를 넘지 않는다', () => {

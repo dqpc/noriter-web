@@ -617,3 +617,26 @@ body {
     padding-inline: 10px;
   }
 }
+
+/* Game entry */
+.entry-hero {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px 0 16px;
+  text-align: center;
+}
+.entry-desc {
+  margin: 0;
+  color: var(--muted);
+}
+.entry-actions {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+.entry-btn {
+  padding: 16px;
+  font-size: 18px;
+  text-align: center;
+}
