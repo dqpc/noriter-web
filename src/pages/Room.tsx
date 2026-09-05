@@ -34,6 +34,7 @@ export function Room() {
   const [error, setError] = useState<string | null>(null)
   const [disconnected, setDisconnected] = useState(false)
   const [chat, setChat] = useState<ChatMessage[]>([])
+  const [gameState, setGameState] = useState<{ view: Record<string, unknown>; receivedAt: number } | null>(null)
   const socketRef = useRef<RoomSocket | null>(null)
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function Room() {
         else if (m.type === 'room') setRoom(m.room)
         else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
         else if (m.type === 'chatHistory') setChat(m.messages)
+        else if (m.type === 'gameState') setGameState({ view: m.state, receivedAt: performance.now() })
         else setError(m.message)
       },
       onClose: () => setDisconnected(true),
@@ -77,6 +79,8 @@ export function Room() {
     }),
     [send],
   )
+
+  const sendInput = useCallback((input: Record<string, unknown>) => send({ type: 'input', input }), [send])
 
   const isPlaying = room?.status === 'PLAYING' || room?.status === 'COUNTDOWN'
   const now = useNow(isPlaying)
@@ -112,7 +116,9 @@ export function Room() {
     const started = room.status !== 'WAITING'
     return (
       <section className="page">
-        <h1 className="page-title">{room.game.name} 함께 하기</h1>
+        <h1 className="page-title">
+          {room.game.name} {room.mode === 'COOP' ? '협동' : '대전'}
+        </h1>
         <p className="page-sub">
           {room.players.length}/{room.maxPlayers} 명 · {started ? '이미 시작됨' : '대기 중'}
         </p>
@@ -143,7 +149,9 @@ export function Room() {
         <Link to="/" className="play-back" aria-label="목록으로">
           ←
         </Link>
-        <span className="play-title">{room.game.name}</span>
+        <span className="play-title">
+          {room.game.name} <span className="room-mode">{room.mode === 'COOP' ? '협동' : '대전'}</span>
+        </span>
         <span className="play-best">{me?.nickname ?? nickname}</span>
       </div>
       {error && <p className="room-error">{error}</p>}
@@ -174,15 +182,32 @@ export function Room() {
                 ? '종료'
                 : ''}
           </div>
-          <game.Component host={host} options={{ ...room.options, seed: room.seed }} />
-          <Scoreboard players={room.players} me={playerId} finished={room.status === 'FINISHED'} />
+          {room.mode === 'COOP' && game.Coop ? (
+            gameState ? (
+              <game.Coop
+                view={gameState.view}
+                receivedAt={gameState.receivedAt}
+                myRole={roleOf(gameState.view, playerId)}
+                onInput={sendInput}
+              />
+            ) : (
+              <p className="room-hint">시작 준비 중…</p>
+            )
+          ) : (
+            <game.Component host={host} options={{ ...room.options, seed: room.seed }} />
+          )}
+          {room.mode === 'COOP' ? (
+            <CoopSummary players={room.players} roles={gameState ? roleMap(gameState.view) : {}} finished={room.status === 'FINISHED'} />
+          ) : (
+            <Scoreboard players={room.players} me={playerId} finished={room.status === 'FINISHED'} />
+          )}
           {room.status === 'FINISHED' && (
             <div className="room-actions">
               <button
                 type="button"
                 className="btn"
                 onClick={async () => {
-                  const next = await createRoom(room.gameId)
+                  const next = await createRoom(room.gameId, room.mode)
                   socketRef.current?.close()
                   navigate(`/rooms/${next.id}`)
                   window.location.reload()
@@ -230,7 +255,8 @@ function Lobby({
     { length: room.game.maxPlayersLimit - room.game.minPlayers + 1 },
     (_, i) => room.game.minPlayers + i,
   )
-  const canStart = room.players.length >= room.game.minPlayers
+  const needed = room.mode === 'COOP' ? room.maxPlayers : room.game.minPlayers
+  const canStart = room.players.length >= needed
 
   return (
     <div className="room-lobby">
@@ -263,12 +289,15 @@ function Lobby({
       </ul>
 
       <div className="room-settings">
+        {room.mode === 'COOP' && (
+          <p className="room-hint">협동: 2명이 한 캐릭터를 올립니다. 먼저 들어온 사람이 왼쪽, 다음 사람이 오른쪽 버튼을 맡습니다.</p>
+        )}
         <label>
           최대 인원
           <select
             className="input"
             value={room.maxPlayers}
-            disabled={!isHost}
+            disabled={!isHost || room.mode === 'COOP'}
             onChange={(e) => send({ type: 'settings', maxPlayers: Number(e.target.value) })}
           >
             {maxRange.map((n) => (
@@ -303,7 +332,7 @@ function Lobby({
 
       {isHost ? (
         <button type="button" className="btn room-start" disabled={!canStart} onClick={() => send({ type: 'start' })}>
-          {canStart ? '시작' : `${room.game.minPlayers}명 이상 필요`}
+          {canStart ? '시작' : `${needed}명 필요`}
         </button>
       ) : (
         <p className="room-hint">방장이 시작하기를 기다리는 중…</p>
@@ -386,5 +415,28 @@ function Chat({ messages, me, onSend }: { messages: ChatMessage[]; me: string | 
         </button>
       </form>
     </div>
+  )
+}
+
+function roleMap(view: Record<string, unknown>): Record<string, string> {
+  const roles = view.roles
+  return roles && typeof roles === 'object' ? (roles as Record<string, string>) : {}
+}
+
+function roleOf(view: Record<string, unknown>, playerId: string | null): string | null {
+  return playerId ? (roleMap(view)[playerId] ?? null) : null
+}
+
+function CoopSummary({ players, roles, finished }: { players: PlayerSnapshot[]; roles: Record<string, string>; finished: boolean }) {
+  return (
+    <ol className="room-scoreboard">
+      {players.map((p) => (
+        <li key={p.id}>
+          <span className="room-rank">{roles[p.id] === 'L' ? '◀' : roles[p.id] === 'R' ? '▶' : ''}</span>
+          <span className="room-name">{p.nickname}</span>
+          <span className="room-score">{finished ? `${p.score} 칸` : ''}</span>
+        </li>
+      ))}
+    </ol>
   )
 }

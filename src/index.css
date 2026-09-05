@@ -505,3 +505,11 @@ body {
 .stairs-pad:disabled {
   opacity: 0.35;
 }
+
+.room-mode {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-left: 6px;
+  vertical-align: middle;
+}
