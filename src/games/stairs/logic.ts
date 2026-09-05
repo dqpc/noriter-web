@@ -18,7 +18,6 @@ export const SPEEDS: Record<string, StairsRules> = {
 export const DEFAULT_SPEED = 'normal'
 export const BOOST_WINDOW_MS = 120
 export const BOOST_STEPS = 4
-export const BOOST_COOLDOWN_MS = 2000
 export const BOOST_DURATION_MS = 240
 export const ITEM_MIN_STEP = 5
 export const ITEM_CHANCE = 0.08
@@ -118,8 +117,7 @@ export function actionFor(state: StairsState, i: number): Action {
 function canBoost(s: StairsState, now: number): boolean {
   return (
     s.lastTurnAt !== null &&
-    now - s.lastTurnAt <= BOOST_WINDOW_MS &&
-    (s.lastBoostAt === null || now - s.lastBoostAt >= BOOST_COOLDOWN_MS)
+    now - s.lastTurnAt <= BOOST_WINDOW_MS
   )
 }
 
