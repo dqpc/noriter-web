@@ -11,6 +11,10 @@ export interface StairsView {
   pattern: string
 }
 
+export function itemFromPattern(pattern: string): (i: number) => boolean {
+  return (i) => pattern[i] === 'l' || pattern[i] === 'r'
+}
+
 const STEP_DX = 34
 const STEP_DY = 22
 const VISIBLE_STEPS = 14
@@ -25,6 +29,7 @@ const COLORS = {
   energyBg: '#3f3a36',
   energy: '#22c55e',
   energyLow: '#ef4444',
+  bolt: '#fde047',
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -37,9 +42,22 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath()
 }
 
+function drawBolt(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+  ctx.fillStyle = COLORS.bolt
+  ctx.beginPath()
+  ctx.moveTo(cx + 2, cy - 12)
+  ctx.lineTo(cx - 6, cy + 1)
+  ctx.lineTo(cx - 1, cy + 1)
+  ctx.lineTo(cx - 3, cy + 12)
+  ctx.lineTo(cx + 6, cy - 2)
+  ctx.lineTo(cx + 1, cy - 2)
+  ctx.closePath()
+  ctx.fill()
+}
+
 export function drawStairs(canvas: HTMLCanvasElement, v: StairsView) {
-  const dirAt = (i: number): Dir => (v.pattern[i] === 'L' ? 'L' : 'R')
-  drawWith(canvas, v.steps, v.energy, v.maxEnergy, dirAt)
+  const dirAt = (i: number): Dir => (v.pattern[i]?.toUpperCase() === 'L' ? 'L' : 'R')
+  drawWith(canvas, v.steps, v.energy, v.maxEnergy, dirAt, itemFromPattern(v.pattern))
 }
 
 export function drawWith(
@@ -48,6 +66,7 @@ export function drawWith(
   energy: number,
   maxEnergy: number,
   dirAt: (i: number) => Dir,
+  itemAt: (i: number) => boolean = () => false,
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -81,6 +100,7 @@ export function drawWith(
     ctx.fillStyle = current ? COLORS.stairCurrentTop : COLORS.stairTop
     roundRect(ctx, x, y, STEP_DX, 6, 3)
     ctx.fill()
+    if (i > steps && itemAt(i)) drawBolt(ctx, x + STEP_DX / 2, y - 10)
   }
 
   const hx = camX + heroX

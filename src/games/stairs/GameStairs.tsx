@@ -5,7 +5,7 @@ import { newStairs, press, tick, type Dir, type StairsState } from './logic'
 import { drawWith } from './draw'
 
 function draw(canvas: HTMLCanvasElement, state: StairsState) {
-  drawWith(canvas, state.steps, state.energy, state.rules.maxEnergy, state.dirAt)
+  drawWith(canvas, state.steps, state.energy, state.rules.maxEnergy, state.dirAt, state.itemAt)
 }
 
 function readSeed(options?: GameOptions): number {
@@ -119,7 +119,7 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
           ▶
         </button>
       </div>
-      <p className="g2048-help">다음 계단이 있는 쪽을 누르세요. 멈추면 에너지가 떨어집니다.</p>
+      <p className="g2048-help">다음 계단이 있는 쪽을 누르세요. 번개를 밟으면 에너지가 가득 찹니다.</p>
     </div>
   )
 }
