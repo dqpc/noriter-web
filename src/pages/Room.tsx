@@ -10,6 +10,7 @@ import {
   type OptionValue,
   type PlayerSnapshot,
   type RoomSnapshot,
+  type RoomStatus,
 } from '../lib/roomClient'
 import { getPreference, setPreference } from '../lib/storage'
 import { formatDuration } from '../lib/time'
@@ -38,6 +39,7 @@ export function Room() {
   const [others, setOthers] = useState<Record<string, Record<string, unknown>>>({})
   const [watching, setWatching] = useState<string | null>(null)
   const socketRef = useRef<RoomSocket | null>(null)
+  const statusRef = useRef<RoomStatus | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -65,7 +67,9 @@ export function Room() {
       onMessage: (m) => {
         if (m.type === 'hello') setPlayerId(m.playerId)
         else if (m.type === 'room') {
+          statusRef.current = m.room.status
           setRoom(m.room)
+          setError(null)
           if (m.room.status === 'WAITING' || m.room.status === 'COUNTDOWN') {
             setOthers({})
             setWatching(null)
@@ -91,9 +95,9 @@ export function Room() {
 
   const host = useMemo<GameHost>(
     () => ({
-      onScore: (score) => send({ type: 'score', score }),
-      onGameOver: (score) => send({ type: 'finish', score }),
-      onState: (state) => send({ type: 'state', state }),
+      onScore: (score) => statusRef.current === 'PLAYING' && send({ type: 'score', score }),
+      onGameOver: (score) => statusRef.current === 'PLAYING' && send({ type: 'finish', score }),
+      onState: (state) => statusRef.current === 'PLAYING' && send({ type: 'state', state }),
     }),
     [send],
   )
