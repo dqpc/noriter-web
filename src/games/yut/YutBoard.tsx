@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { CharacterAvatar, characterSvg, findCharacter } from '../../characters'
 import type { TurnProps } from '../types'
 import { CENTER, CORNERS, FINISH, NODE_POS, THROW_LABEL, toYutView, type YutMove } from './board'
 
-const THROW_ANIM_MS = 800
+const ROLL_MS = 1000
+const RESULT_MS = 1200
+const SPARKS: Record<string, number> = { BACKDO: 8, DO: 0, GAE: 0, GEOL: 6, YUT: 10, MO: 16 }
 
 function useNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now())
@@ -29,8 +31,14 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const setChip = (c: string | null) => setSel({ key: stepKey, chip: c, pending: null })
   const setPending = (m: YutMove[] | null) => setSel({ key: stepKey, chip, pending: m })
   const throwKey = v.lastEvent?.type === 'throw' ? JSON.stringify([v.lastEvent, v.sticks]) : ''
-  const [anim, setAnim] = useState<{ key: string; rolling: boolean[] | null }>({ key: '', rolling: null })
-  const throwing = throwKey !== '' && (anim.key !== throwKey || anim.rolling !== null)
+  const [anim, setAnim] = useState<{ key: string; stage: 'roll' | 'result' | 'done'; rolling: boolean[] | null }>({
+    key: '',
+    stage: 'done',
+    rolling: null,
+  })
+  const throwing = throwKey !== '' && (anim.key !== throwKey || anim.stage === 'roll')
+  const showResult = throwKey !== '' && anim.key === throwKey && anim.stage === 'result'
+  const result = v.lastEvent?.type === 'throw' ? String(v.lastEvent.result) : ''
   const rolling = anim.rolling ?? v.sticks
   const now = useNow(!v.ended)
 
@@ -44,16 +52,21 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   useEffect(() => {
     if (!throwKey) return
     const flips = window.setInterval(
-      () => setAnim({ key: throwKey, rolling: Array.from({ length: 4 }, () => Math.random() < 0.5) }),
+      () => setAnim({ key: throwKey, stage: 'roll', rolling: Array.from({ length: 4 }, () => Math.random() < 0.5) }),
       90,
     )
-    const stop = window.setTimeout(() => {
+    const toResult = window.setTimeout(() => {
       window.clearInterval(flips)
-      setAnim({ key: throwKey, rolling: null })
-    }, THROW_ANIM_MS)
+      setAnim({ key: throwKey, stage: 'result', rolling: null })
+    }, ROLL_MS)
+    const toDone = window.setTimeout(
+      () => setAnim({ key: throwKey, stage: 'done', rolling: null }),
+      ROLL_MS + RESULT_MS,
+    )
     return () => {
       window.clearInterval(flips)
-      window.clearTimeout(stop)
+      window.clearTimeout(toResult)
+      window.clearTimeout(toDone)
     }
   }, [throwKey])
 
@@ -78,7 +91,6 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   }
 
   const remainMs = v.deadline ? Math.max(0, new Date(v.deadline).getTime() - now) : 0
-  const sticks = throwing ? rolling : v.sticks
 
   return (
     <div className="yut">
@@ -106,14 +118,12 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
           )}
         </div>
         <div className="yut-sticks" aria-label="윷가락">
-          {sticks.map((flat, i) => (
-            <span key={i} className={`yut-stick ${flat ? 'flat' : 'round'} ${throwing ? 'rolling' : ''}`}>
+          {v.sticks.map((flat, i) => (
+            <span key={i} className={`yut-stick ${flat ? 'flat' : 'round'}`}>
               {i === 0 && <i className="yut-mark" />}
             </span>
           ))}
-          {!throwing && v.lastEvent?.type === 'throw' && (
-            <span className="yut-result">{THROW_LABEL[String(v.lastEvent.result)] ?? ''}</span>
-          )}
+          {!throwing && result && <span className="yut-result">{THROW_LABEL[result] ?? ''}</span>}
         </div>
       </div>
 
@@ -124,61 +134,92 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
           {' 대신 봇이 둡니다'}
         </div>
       )}
-      <svg className="yut-board" viewBox="0 0 560 560" role="img" aria-label="말판">
-        <rect x="60" y="60" width="440" height="440" className="yut-line" />
-        <line x1="500" y1="500" x2="60" y2="60" className="yut-line" />
-        <line x1="500" y1="60" x2="60" y2="500" className="yut-line" />
-        {NODE_POS.map(([x, y], i) => {
-          const corner = CORNERS.has(i) || i === CENTER
-          const target = destNodes.has(i)
-          return (
-            <g key={i} className={target ? 'yut-node target' : 'yut-node'} onClick={() => target && clickDest(i)}>
-              <circle cx={x} cy={y} r={corner ? 17 : 12} />
-              {target && <circle cx={x} cy={y} r={corner ? 24 : 19} className="yut-target-ring" />}
-            </g>
-          )
-        })}
-        {finishTarget(candidates) && (
-          <g className="yut-node target" onClick={() => clickDest(FINISH)}>
-            <rect x="8" y="520" width="96" height="30" rx="8" />
-            <text x="56" y="540" className="yut-finish-label">
-              나가기
-            </text>
-          </g>
-        )}
-        {v.players.map((p) =>
-          groupPieces(p.pieces).map((g) => {
-            const [x, y] = NODE_POS[g.node]
-            const mine = p.id === me
-            const selectable = active && g.ids.some((id) => candidates.some((m) => m.pieceId === id))
-            const offset = playerOffset(v.players, p.id)
+      <div className={`yut-board-wrap ${showResult && result === 'MO' ? 'shake' : ''}`}>
+        <svg className="yut-board" viewBox="0 0 560 560" role="img" aria-label="말판">
+          <rect x="60" y="60" width="440" height="440" className="yut-line" />
+          <line x1="500" y1="500" x2="60" y2="60" className="yut-line" />
+          <line x1="500" y1="60" x2="60" y2="500" className="yut-line" />
+          {NODE_POS.map(([x, y], i) => {
+            const corner = CORNERS.has(i) || i === CENTER
+            const target = destNodes.has(i)
             return (
-              <g
-                key={`${p.id}-${g.node}`}
-                className={`yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''}`}
-                transform={`translate(${x + offset[0]} ${y + offset[1] - 18})`}
-                onClick={() => selectable && pickPiece(g.ids[0])}
-              >
-                <image
-                  href={`data:image/svg+xml;utf8,${encodeURIComponent(characterSvg(findCharacter(characterOf(p.id)), 'R'))}`}
-                  x="-16"
-                  y="-16"
-                  width="32"
-                  height="32"
-                />
-                {g.ids.length > 1 && (
-                  <>
-                    <circle cx="12" cy="-12" r="8" className="yut-stack-badge" />
-                    <text x="12" y="-8.5" className="yut-stack-text">
-                      {g.ids.length}
-                    </text>
-                  </>
-                )}
+              <g key={i} className={target ? 'yut-node target' : 'yut-node'} onClick={() => target && clickDest(i)}>
+                <circle cx={x} cy={y} r={corner ? 17 : 12} />
+                {target && <circle cx={x} cy={y} r={corner ? 24 : 19} className="yut-target-ring" />}
               </g>
             )
-          }),
+          })}
+          {finishTarget(candidates) && (
+            <g className="yut-node target" onClick={() => clickDest(FINISH)}>
+              <rect x="456" y="520" width="96" height="30" rx="8" />
+              <text x="504" y="540" className="yut-finish-label">
+                나가기
+              </text>
+            </g>
+          )}
+          {v.players.map((p) =>
+            groupPieces(p.pieces).map((g) => {
+              const [x, y] = NODE_POS[g.node]
+              const mine = p.id === me
+              const selectable = active && g.ids.some((id) => candidates.some((m) => m.pieceId === id))
+              const offset = playerOffset(v.players, p.id)
+              return (
+                <g
+                  key={`${p.id}-${g.node}`}
+                  className={`yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''}`}
+                  transform={`translate(${x + offset[0]} ${y + offset[1] - 18})`}
+                  onClick={() => selectable && pickPiece(g.ids[0])}
+                >
+                  {g.ids.map((id, i) => (
+                    <image
+                      key={id}
+                      href={`data:image/svg+xml;utf8,${encodeURIComponent(characterSvg(findCharacter(characterOf(p.id)), 'R'))}`}
+                      x={-16 + i * 6}
+                      y={-16 - i * 7}
+                      width="32"
+                      height="32"
+                    />
+                  ))}
+                  {g.ids.length > 1 && (
+                    <g transform={`translate(${14 + (g.ids.length - 1) * 6} ${-14 - (g.ids.length - 1) * 7})`}>
+                      <circle r="9" className="yut-stack-badge" />
+                      <text y="4" className="yut-stack-text">
+                        {g.ids.length}
+                      </text>
+                    </g>
+                  )}
+                </g>
+              )
+            }),
+          )}
+        </svg>
+        {(throwing || showResult) && (
+          <div className={`yut-fx ${showResult ? `show yut-fx-${result.toLowerCase()}` : 'roll'}`} aria-hidden>
+            {throwing ? (
+              <div className="yut-fx-sticks">
+                {rolling.map((flat, i) => (
+                  <span key={i} className={`yut-stick ${flat ? 'flat' : 'round'} rolling`}>
+                    {i === 0 && <i className="yut-mark" />}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <>
+                <i className="yut-fx-ring" />
+                <i className="yut-fx-ring r2" />
+                {Array.from({ length: SPARKS[result] ?? 0 }, (_, i) => (
+                  <i
+                    key={i}
+                    className="yut-fx-spark"
+                    style={{ '--a': `${(i * 360) / (SPARKS[result] ?? 1)}deg` } as CSSProperties}
+                  />
+                ))}
+                <span className="yut-fx-text">{THROW_LABEL[result] ?? ''}</span>
+              </>
+            )}
+          </div>
         )}
-      </svg>
+      </div>
 
       <div className="yut-controls">
         <div className="yut-queue">
