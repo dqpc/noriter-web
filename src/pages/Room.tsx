@@ -290,7 +290,7 @@ function Lobby({
                   disabled={!isHost}
                   onClick={() => send({ type: 'settings', options: { [key]: c as OptionValue } })}
                 >
-                  {String(c)}
+                  {optionValue(c)}
                 </button>
               ))}
             </div>
@@ -312,8 +312,15 @@ function Lobby({
   )
 }
 
+const OPTION_LABELS: Record<string, string> = { target: '목표 타일', speed: '속도' }
+const OPTION_VALUES: Record<string, string> = { normal: '보통', fast: '빠름' }
+
 function optionLabel(key: string): string {
-  return key === 'target' ? '목표 타일' : key
+  return OPTION_LABELS[key] ?? key
+}
+
+function optionValue(v: unknown): string {
+  return OPTION_VALUES[String(v)] ?? String(v)
 }
 
 function Scoreboard({ players, me, finished }: { players: PlayerSnapshot[]; me: string | null; finished: boolean }) {
