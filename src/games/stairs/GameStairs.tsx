@@ -124,15 +124,30 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   }, [options, frame])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.repeat) return
-      if (e.key === 'Shift') input('TURN')
-      else if (e.key === ' ' || e.code === 'Space') input('CLIMB')
-      else return
+    const held = new Set<string>()
+    const keyOf = (e: KeyboardEvent) =>
+      e.key === 'Shift' ? 'TURN' : e.key === ' ' || e.code === 'Space' ? 'CLIMB' : null
+    const onDown = (e: KeyboardEvent) => {
+      const k = keyOf(e)
+      if (!k) return
       e.preventDefault()
+      if (e.repeat || held.has(k)) return
+      held.add(k)
+      input(k)
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    const onUp = (e: KeyboardEvent) => {
+      const k = keyOf(e)
+      if (k) held.delete(k)
+    }
+    const onBlur = () => held.clear()
+    window.addEventListener('keydown', onDown)
+    window.addEventListener('keyup', onUp)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onDown)
+      window.removeEventListener('keyup', onUp)
+      window.removeEventListener('blur', onBlur)
+    }
   }, [input])
 
   return (
@@ -152,10 +167,28 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
         )}
       </div>
       <div className="stairs-pads">
-        <button type="button" className="stairs-pad" onPointerDown={() => input('TURN')} aria-label="방향 전환">
+        <button
+          type="button"
+          className="stairs-pad"
+          onPointerDown={(e) => {
+            e.currentTarget.blur()
+            input('TURN')
+          }}
+          onKeyDown={(e) => e.preventDefault()}
+          aria-label="방향 전환"
+        >
           <TurnIcon />
         </button>
-        <button type="button" className="stairs-pad" onPointerDown={() => input('CLIMB')} aria-label="오르기">
+        <button
+          type="button"
+          className="stairs-pad"
+          onPointerDown={(e) => {
+            e.currentTarget.blur()
+            input('CLIMB')
+          }}
+          onKeyDown={(e) => e.preventDefault()}
+          aria-label="오르기"
+        >
           <ClimbIcon />
         </button>
       </div>
