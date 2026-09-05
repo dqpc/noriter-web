@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { ITEM_MIN_STEP, actionFor, makeItems, makePattern, newStairs, press, tick } from './logic'
+import {
+  BOOST_COOLDOWN_MS,
+  BOOST_COST,
+  BOOST_STEPS,
+  BOOST_WINDOW_MS,
+  ITEM_MIN_STEP,
+  actionFor,
+  displaySteps,
+  makeItems,
+  makePattern,
+  newStairs,
+  press,
+  tick,
+} from './logic'
 
 describe('stairs', () => {
   it('같은 seed 는 같은 계단', () => {
@@ -38,18 +51,51 @@ describe('stairs', () => {
     let first = ITEM_MIN_STEP
     while (!items(first)) first++
     let s = newStairs(11)
-    for (let i = 1; i < first; i++) s = press(s, actionFor(s, i), i * 10)
+    for (let i = 1; i < first; i++) s = press(s, actionFor(s, i), i * 300)
     const rate = s.rules.drainPerSec * (1 + s.rules.drainGrowthPerStep * s.steps)
-    const at = (first - 1) * 10 + ((s.energy * 0.6) / rate) * 1000
+    const at = (first - 1) * 300 + ((s.energy * 0.6) / rate) * 1000
     s = tick(s, at)
     expect(s.ended).toBe(false)
     expect(s.energy).toBeLessThan(s.rules.maxEnergy * 0.5)
     s = press(s, actionFor(s, first), at)
     expect(s.energy).toBe(s.rules.maxEnergy)
   })
+  it('방향 전환 직후 오르기를 따닥 누르면 부스터로 4칸 오른다', () => {
+    let s = newStairs(5)
+    let t = 0
+    while (actionFor(s, s.steps + 1) !== 'TURN') {
+      t += 300
+      s = press(s, 'CLIMB', t)
+    }
+    t += 300
+    s = press(s, 'TURN', t)
+    const before = s
+    s = press(s, 'CLIMB', t + BOOST_WINDOW_MS)
+    expect(s.steps).toBe(before.steps + BOOST_STEPS)
+    expect(s.facing).toBe(s.dirAt(s.steps))
+    expect(s.boost?.from).toBe(before.steps)
+    expect(displaySteps(s, t + BOOST_WINDOW_MS)).toBe(before.steps)
+    expect(displaySteps(s, t + BOOST_WINDOW_MS + 1000)).toBe(s.steps)
+    const noItem = [1, 2, 3, 4].every((k) => !s.itemAt(before.steps + k))
+    if (noItem) {
+      expect(s.energy).toBeLessThanOrEqual(before.energy - BOOST_COST)
+      expect(s.energy).toBeGreaterThan(before.energy - BOOST_COST - 5)
+    }
+
+    s = press(s, 'TURN', t + 500)
+    const again = press(s, 'CLIMB', t + 520)
+    expect(again.steps - s.steps).toBeLessThanOrEqual(1)
+
+    s = press(s, actionFor(s, s.steps + 1), t + BOOST_COOLDOWN_MS + 600)
+    if (actionFor(s, s.steps + 1) === 'TURN') {
+      const t2 = t + BOOST_COOLDOWN_MS + 900
+      s = press(s, 'TURN', t2)
+      expect(press(s, 'CLIMB', t2 + BOOST_WINDOW_MS + 1).steps - s.steps).toBeLessThanOrEqual(1)
+    }
+  })
   it('에너지는 최대치를 넘지 않는다', () => {
     let s = newStairs(3)
-    for (let i = 1; i <= 5; i++) s = press(s, actionFor(s, i), i * 10)
+    for (let i = 1; i <= 5; i++) s = press(s, actionFor(s, i), i * 300)
     expect(s.steps).toBe(5)
     expect(s.energy).toBeLessThanOrEqual(s.rules.maxEnergy)
   })
