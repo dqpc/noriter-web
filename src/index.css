@@ -412,15 +412,15 @@ body {
 
 /* Chat */
 .chat {
-  margin-top: 16px;
   background: var(--surface);
   border-radius: 12px;
   display: grid;
   grid-template-rows: 1fr auto;
   overflow: hidden;
+  min-height: 260px;
+  max-height: 70dvh;
 }
 .chat-list {
-  max-height: 220px;
   min-height: 120px;
   overflow-y: auto;
   padding: 10px 12px;
@@ -592,4 +592,28 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Room layout: 본문 왼쪽, 채팅 오른쪽 */
+.app-main:has(.room) {
+  max-width: 860px;
+}
+.room-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 12px;
+  align-items: start;
+}
+.room-layout > .chat {
+  position: sticky;
+  top: 12px;
+}
+@media (max-width: 480px) {
+  .room-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+  .chat-form .btn {
+    padding-inline: 10px;
+  }
 }
