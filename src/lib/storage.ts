@@ -26,6 +26,14 @@ export function setBestScore(gameId: string, score: number): void {
   if (score > getBestScore(gameId)) safeSet(`${gameId}:best`, String(score))
 }
 
+export function getPlayerToken(): string {
+  const saved = safeGet('player:id')
+  if (saved && /^[A-Za-z0-9_-]{16,64}$/.test(saved)) return saved
+  const token = crypto.randomUUID().replace(/-/g, '')
+  safeSet('player:id', token)
+  return token
+}
+
 export function getPreference(gameId: string, key: string): string | null {
   return safeGet(`${gameId}:pref:${key}`)
 }

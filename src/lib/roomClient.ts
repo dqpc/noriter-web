@@ -10,6 +10,7 @@ export interface PlayerSnapshot {
   score: number
   finished: boolean
   rank: number | null
+  connected: boolean
 }
 
 export interface GameInfo {
@@ -55,7 +56,7 @@ export type ServerMessage =
   | { type: 'gameState'; state: Record<string, unknown> }
 
 export type ClientMessage =
-  | { type: 'join'; nickname: string; character: string }
+  | { type: 'join'; nickname: string; character: string; playerId: string }
   | { type: 'settings'; maxPlayers?: number; options?: Record<string, OptionValue> }
   | { type: 'start' }
   | { type: 'score'; score: number }
