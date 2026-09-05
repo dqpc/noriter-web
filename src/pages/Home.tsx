@@ -16,7 +16,7 @@ export function Home() {
       getRememberedRooms().map(async (r) => {
         const snap = await fetchRoom(r.roomId).catch(() => undefined)
         if (snap === undefined) return null
-        if (!snap || !snap.players.some((p) => p.id === token)) {
+        if (!snap || snap.status === 'FINISHED' || !snap.players.some((p) => p.id === token)) {
           forgetRoom(r.roomId)
           return null
         }
@@ -70,11 +70,7 @@ export function Home() {
             {resumable[g.id] && (
               <Link to={`/rooms/${resumable[g.id].id}`} className="game-resume">
                 <i className="game-resume-dot" />
-                {resumable[g.id].status === 'WAITING'
-                  ? '대기 중인 방이 있어요'
-                  : resumable[g.id].status === 'FINISHED'
-                    ? '끝난 판이 있어요 · 다시 하기 대기'
-                    : '진행 중인 판이 있어요'}
+                {resumable[g.id].status === 'WAITING' ? '대기 중인 방이 있어요' : '진행 중인 판이 있어요'}
                 <span className="game-resume-cta">다시 들어가기 →</span>
               </Link>
             )}
