@@ -25,3 +25,11 @@ export function getBestScore(gameId: string): number {
 export function setBestScore(gameId: string, score: number): void {
   if (score > getBestScore(gameId)) safeSet(`${gameId}:best`, String(score))
 }
+
+export function getPreference(gameId: string, key: string): string | null {
+  return safeGet(`${gameId}:pref:${key}`)
+}
+
+export function setPreference(gameId: string, key: string, value: string): void {
+  safeSet(`${gameId}:pref:${key}`, value)
+}

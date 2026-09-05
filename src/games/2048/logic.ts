@@ -168,6 +168,7 @@ export interface GameState {
   target: number
 }
 
+export const TARGETS = [512, 1024, 2048] as const
 export const DEFAULT_TARGET = 2048
 
 export function newGame(random: () => number = Math.random, target = DEFAULT_TARGET): GameState {
@@ -186,11 +187,7 @@ export interface StepResult {
   spawned: [number, number] | null
 }
 
-export function stepWithTrace(
-  state: GameState,
-  dir: Direction,
-  random: () => number = Math.random,
-): StepResult {
+export function stepWithTrace(state: GameState, dir: Direction, random: () => number = Math.random): StepResult {
   if (isEnded(state)) return { state, moved: false, moves: [], spawned: null }
   const res = moveWithTrace(state.board, dir)
   if (!res.moved) return { state, moved: false, moves: [], spawned: null }

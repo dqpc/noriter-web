@@ -38,7 +38,7 @@ export function Play() {
   return (
     <section className="page play">
       <div className="play-bar">
-        <Link to="/" className="play-back" aria-label="목록으로">
+        <Link to={`/games/${game.id}`} className="play-back" aria-label="뒤로">
           ←
         </Link>
         <span className="play-title">{game.name}</span>

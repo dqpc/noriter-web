@@ -14,7 +14,8 @@ jobs:
     env:
       CLOUDFLARE_ACCOUNT_ID: f4cc573f4f59b10d83591525018dcd7c
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      WORKERS_CI_BRANCH: ${{ github.ref_name }}
+      VITE_APP_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      VITE_API_URL: ${{ github.ref_name == 'main' && 'https://noriter-api.asgd56.workers.dev' || 'https://noriter-api-dev.asgd56.workers.dev' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,6 +25,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
-      - run: npm run build:cf
+      - run: npm run build
       - name: deploy (main → noriter-web, develop → noriter-web-dev)
         run: npx wrangler deploy ${{ github.ref_name == 'develop' && '--env dev' || '' }}
