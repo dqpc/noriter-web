@@ -34,6 +34,33 @@ export function getPlayerToken(): string {
   return token
 }
 
+export interface RememberedRoom {
+  roomId: string
+  gameId: string
+}
+
+function readRooms(): RememberedRoom[] {
+  try {
+    const list = JSON.parse(safeGet('room:active') ?? '[]') as unknown
+    return Array.isArray(list) ? (list as RememberedRoom[]).filter((r) => r && r.roomId && r.gameId) : []
+  } catch {
+    return []
+  }
+}
+
+export function getRememberedRooms(): RememberedRoom[] {
+  return readRooms()
+}
+
+export function rememberRoom(roomId: string, gameId: string): void {
+  const rest = readRooms().filter((r) => r.roomId !== roomId && r.gameId !== gameId)
+  safeSet('room:active', JSON.stringify([{ roomId, gameId }, ...rest].slice(0, 5)))
+}
+
+export function forgetRoom(roomId: string): void {
+  safeSet('room:active', JSON.stringify(readRooms().filter((r) => r.roomId !== roomId)))
+}
+
 export function getPreference(gameId: string, key: string): string | null {
   return safeGet(`${gameId}:pref:${key}`)
 }
