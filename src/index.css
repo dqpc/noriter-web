@@ -466,3 +466,42 @@ body {
   flex: 1;
   min-width: 0;
 }
+
+/* Stairs */
+.stairs-board-wrap {
+  position: relative;
+  width: 100%;
+  height: min(58dvh, 520px);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.stairs-board {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+.stairs-pads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.stairs-pad {
+  appearance: none;
+  border: 0;
+  border-radius: 14px;
+  height: 84px;
+  font-size: 32px;
+  background: var(--surface);
+  color: var(--text);
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.stairs-pad:active {
+  background: var(--surface-2);
+}
+.stairs-pad:disabled {
+  opacity: 0.35;
+}
