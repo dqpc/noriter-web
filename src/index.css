@@ -746,6 +746,12 @@ button.room-me {
   .room-live {
     grid-template-columns: minmax(0, 1fr) 232px;
   }
+  .room-live > .room-play {
+    grid-column: 1;
+  }
+  .room-live > .room-others {
+    grid-column: 2;
+  }
   .room-live .room-others {
     grid-template-columns: repeat(2, 1fr);
     position: sticky;
@@ -755,6 +761,15 @@ button.room-me {
 @media (min-width: 1040px) {
   .room-live {
     grid-template-columns: 260px minmax(0, 1fr) 232px;
+  }
+  .room-live > .room-live-chat {
+    grid-column: 1;
+  }
+  .room-live > .room-play {
+    grid-column: 2;
+  }
+  .room-live > .room-others {
+    grid-column: 3;
   }
   .room-live-chat {
     display: block;
