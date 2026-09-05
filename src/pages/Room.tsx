@@ -42,6 +42,7 @@ export function Room() {
   const [gameState, setGameState] = useState<Record<string, unknown> | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [chatSeen, setChatSeen] = useState(0)
+  const chatLen = useRef(0)
   const socketRef = useRef<RoomSocket | null>(null)
   const statusRef = useRef<RoomStatus | null>(null)
 
@@ -70,6 +71,7 @@ export function Room() {
         onMessage: (m) => {
           if (m.type === 'hello') setPlayerId(m.playerId)
           else if (m.type === 'room') {
+            if (statusRef.current === 'WAITING' && m.room.status === 'COUNTDOWN') setChatSeen(chatLen.current)
             statusRef.current = m.room.status
             setRoom(m.room)
             setError(null)
@@ -80,9 +82,13 @@ export function Room() {
             }
           } else if (m.type === 'playerState') setOthers((prev) => ({ ...prev, [m.playerId]: m.state }))
           else if (m.type === 'gameState') setGameState(m.state)
-          else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
-          else if (m.type === 'chatHistory') setChat(m.messages)
-          else if (m.type === 'error') setError(m.message)
+          else if (m.type === 'chat') {
+            chatLen.current += 1
+            setChat((prev) => [...prev.slice(-99), m.message])
+          } else if (m.type === 'chatHistory') {
+            chatLen.current = m.messages.length
+            setChat(m.messages)
+          } else if (m.type === 'error') setError(m.message)
         },
         onClose: () => setConnection('closed'),
       })
@@ -182,6 +188,8 @@ export function Room() {
   const watchTarget = playing.find((p) => p.id === watching) ?? playing[0] ?? null
   const countdownLeft = Math.max(0, Math.ceil((new Date(room.startAt ?? 0).getTime() - now) / 1000))
   const ranked = [...room.players].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || b.score - a.score)
+
+  const unread = chatOpen ? 0 : chat.slice(Math.min(chatSeen, chat.length)).filter((m) => !m.system).length
 
   if (!joined) {
     if (mySeat) return <p className="page">다시 연결하는 중…</p>
@@ -369,7 +377,7 @@ export function Room() {
           )}
           <button
             type="button"
-            className="chat-fab"
+            className={`chat-fab ${unread > 0 ? 'has-unread' : ''}`}
             aria-label="채팅 열기"
             onClick={() => {
               setChatOpen(true)
@@ -382,7 +390,7 @@ export function Room() {
                 d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
               />
             </svg>
-            {!chatOpen && chat.length > chatSeen && <span className="chat-fab-badge">{chat.length - chatSeen}</span>}
+            {unread > 0 && <span className="chat-fab-badge">{unread > 99 ? '99+' : unread}</span>}
           </button>
           {chatOpen && (
             <div className="chat-sheet" role="dialog" aria-label="채팅">
