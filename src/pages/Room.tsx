@@ -290,7 +290,7 @@ function Lobby({
 
       <div className="room-settings">
         {room.mode === 'COOP' && (
-          <p className="room-hint">협동: 2명이 한 캐릭터를 올립니다. 먼저 들어온 사람이 왼쪽, 다음 사람이 오른쪽 버튼을 맡습니다.</p>
+          <p className="room-hint">협동: 2명이 한 캐릭터를 올립니다. 먼저 들어온 사람이 방향 전환, 다음 사람이 오르기를 맡습니다.</p>
         )}
         <label>
           최대 인원
@@ -432,7 +432,7 @@ function CoopSummary({ players, roles, finished }: { players: PlayerSnapshot[]; 
     <ol className="room-scoreboard">
       {players.map((p) => (
         <li key={p.id}>
-          <span className="room-rank">{roles[p.id] === 'L' ? '◀' : roles[p.id] === 'R' ? '▶' : ''}</span>
+          <span className="room-rank">{roles[p.id] === 'TURN' ? '전환' : roles[p.id] === 'CLIMB' ? '오르기' : ''}</span>
           <span className="room-name">{p.nickname}</span>
           <span className="room-score">{finished ? `${p.score} 칸` : ''}</span>
         </li>

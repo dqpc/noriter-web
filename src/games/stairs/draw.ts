@@ -2,6 +2,7 @@ import type { Dir } from './logic'
 
 export interface StairsView {
   steps: number
+  facing: Dir
   energy: number
   maxEnergy: number
   drainPerSec: number
@@ -57,12 +58,13 @@ function drawBolt(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
 
 export function drawStairs(canvas: HTMLCanvasElement, v: StairsView) {
   const dirAt = (i: number): Dir => (v.pattern[i]?.toUpperCase() === 'L' ? 'L' : 'R')
-  drawWith(canvas, v.steps, v.energy, v.maxEnergy, dirAt, itemFromPattern(v.pattern))
+  drawWith(canvas, v.steps, v.facing, v.energy, v.maxEnergy, dirAt, itemFromPattern(v.pattern))
 }
 
 export function drawWith(
   canvas: HTMLCanvasElement,
   steps: number,
+  facing: Dir,
   energy: number,
   maxEnergy: number,
   dirAt: (i: number) => Dir,
@@ -110,6 +112,10 @@ export function drawWith(
   ctx.arc(hx, hy - 14, 9, 0, Math.PI * 2)
   ctx.fill()
   roundRect(ctx, hx - 7, hy - 6, 14, 6, 3)
+  ctx.fill()
+  ctx.fillStyle = COLORS.sky
+  ctx.beginPath()
+  ctx.arc(hx + (facing === 'L' ? -4 : 4), hy - 15, 2.2, 0, Math.PI * 2)
   ctx.fill()
 
   const ratio = Math.max(0, Math.min(1, energy / maxEnergy))

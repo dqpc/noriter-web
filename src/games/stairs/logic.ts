@@ -1,6 +1,7 @@
 import { mulberry32 } from '../../lib/random'
 
 export type Dir = 'L' | 'R'
+export type Action = 'TURN' | 'CLIMB'
 
 export interface StairsRules {
   maxEnergy: number
@@ -25,6 +26,7 @@ export function rulesFor(speed: string | undefined): StairsRules {
 
 export interface StairsState {
   steps: number
+  facing: Dir
   energy: number
   startedAt: number | null
   updatedAt: number
@@ -55,15 +57,17 @@ export function makeItems(seed: number): (i: number) => boolean {
 
 export function newStairs(seed: number, speed?: string, now = 0): StairsState {
   const rules = rulesFor(speed)
+  const dirAt = makePattern(seed)
   return {
     steps: 0,
+    facing: dirAt(1),
     energy: rules.maxEnergy,
     startedAt: null,
     updatedAt: now,
     ended: false,
     fell: false,
     rules,
-    dirAt: makePattern(seed),
+    dirAt,
     itemAt: makeItems(seed),
   }
 }
@@ -80,15 +84,21 @@ export function tick(state: StairsState, now: number): StairsState {
   return { ...state, energy, updatedAt: now }
 }
 
-export function press(state: StairsState, dir: Dir, now: number): StairsState {
+export function press(state: StairsState, action: Action, now: number): StairsState {
   if (state.ended) return state
   const s = state.startedAt === null ? { ...state, startedAt: now, updatedAt: now } : tick(state, now)
   if (s.ended) return s
-  if (s.dirAt(s.steps + 1) !== dir) return { ...s, ended: true, fell: true }
+  const facing: Dir = action === 'TURN' ? (s.facing === 'L' ? 'R' : 'L') : s.facing
+  if (s.dirAt(s.steps + 1) !== facing) return { ...s, facing, ended: true, fell: true }
   const next = s.steps + 1
   return {
     ...s,
+    facing,
     steps: next,
     energy: s.itemAt(next) ? s.rules.maxEnergy : Math.min(s.rules.maxEnergy, s.energy + s.rules.gainPerStep),
   }
+}
+
+export function actionFor(state: StairsState, i: number): Action {
+  return state.dirAt(i) === state.facing ? 'CLIMB' : 'TURN'
 }

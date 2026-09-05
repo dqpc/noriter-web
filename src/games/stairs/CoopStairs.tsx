@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { CoopProps } from '../types'
 import { drawStairs, type StairsView } from './draw'
+import { ClimbIcon, TurnIcon } from './icons'
 
 function toView(raw: Record<string, unknown>): StairsView {
   return {
     steps: Number(raw.steps) || 0,
+    facing: raw.facing === 'L' ? 'L' : 'R',
     energy: Number(raw.energy) || 0,
     maxEnergy: Number(raw.maxEnergy) || 100,
     drainPerSec: Number(raw.drainPerSec) || 0,
@@ -41,8 +43,8 @@ export function CoopStairs({ view, receivedAt, myRole, onInput }: CoopProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return
-      if ((e.key === 'ArrowLeft' || e.key === 'a') && myRole === 'L') onInput({ dir: 'L' })
-      else if ((e.key === 'ArrowRight' || e.key === 'd') && myRole === 'R') onInput({ dir: 'R' })
+      if (e.key === 'Shift' && myRole === 'TURN') onInput({ action: 'TURN' })
+      else if (e.key === 'ArrowUp' && myRole === 'CLIMB') onInput({ action: 'CLIMB' })
       else return
       e.preventDefault()
     }
@@ -65,25 +67,25 @@ export function CoopStairs({ view, receivedAt, myRole, onInput }: CoopProps) {
         <button
           type="button"
           className="stairs-pad"
-          disabled={myRole !== 'L' || v.ended}
-          onPointerDown={() => onInput({ dir: 'L' })}
-          aria-label="왼쪽"
+          disabled={myRole !== 'TURN' || v.ended}
+          onPointerDown={() => onInput({ action: 'TURN' })}
+          aria-label="방향 전환"
         >
-          ◀
+          <TurnIcon />
         </button>
         <button
           type="button"
           className="stairs-pad"
-          disabled={myRole !== 'R' || v.ended}
-          onPointerDown={() => onInput({ dir: 'R' })}
-          aria-label="오른쪽"
+          disabled={myRole !== 'CLIMB' || v.ended}
+          onPointerDown={() => onInput({ action: 'CLIMB' })}
+          aria-label="오르기"
         >
-          ▶
+          <ClimbIcon />
         </button>
       </div>
       <p className="g2048-help">
-        {myRole === 'L' ? '당신은 왼쪽 담당입니다.' : myRole === 'R' ? '당신은 오른쪽 담당입니다.' : '관전 중'} 다음 계단이 내 쪽이면
-        누르세요.
+        {myRole === 'TURN' ? '당신은 방향 전환 담당입니다 (Shift).' : myRole === 'CLIMB' ? '당신은 오르기 담당입니다 (↑).' : '관전 중'}{' '}
+        계단이 보는 방향과 다르면 방향 전환, 같으면 오르기.
       </p>
     </div>
   )
