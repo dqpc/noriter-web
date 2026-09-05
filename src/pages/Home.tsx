@@ -37,7 +37,7 @@ export function Home() {
       <div className="home-head">
         <div>
           <h1 className="page-title">놀이터</h1>
-          <p className="page-sub">가볍게 한판. 로그인 없이 바로 시작.</p>
+          <p className="page-sub">놀이터에서 가볍게 한 판</p>
         </div>
         <button type="button" className="me-button" onClick={() => setPicking(true)} aria-label="캐릭터 선택">
           <CharacterAvatar id={me} size={56} />
