@@ -68,9 +68,11 @@ export function GameEntry() {
         <p className="game-card-best">최고 {getBestScore(game.id)}</p>
       </div>
       <div className="entry-actions">
-        <Link to={`/games/${game.id}/play`} className="btn entry-btn">
-          혼자 하기
-        </Link>
+        {game.Component && (
+          <Link to={`/games/${game.id}/play`} className="btn entry-btn">
+            혼자 하기
+          </Link>
+        )}
         <button type="button" className="btn btn-ghost entry-btn" onClick={together} disabled={creating}>
           같이 하기
         </button>

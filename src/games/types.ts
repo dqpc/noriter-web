@@ -15,6 +15,19 @@ export interface PreviewProps {
   character?: string | null
 }
 
+export interface TurnPlayer {
+  id: string
+  nickname: string
+  character: string | null
+}
+
+export interface TurnProps {
+  view: Record<string, unknown>
+  me: string | null
+  players: TurnPlayer[]
+  onAction: (action: Record<string, unknown>) => void
+}
+
 export interface GameHost {
   onScore: (score: number) => void
   onState?: (state: GameStateSnapshot) => void
@@ -26,6 +39,8 @@ export interface GameDefinition {
   name: string
   description: string
   Icon: ComponentType<{ size?: number }>
-  Component: ComponentType<{ host: GameHost; options?: GameOptions }>
-  Preview: ComponentType<PreviewProps>
+  Component?: ComponentType<{ host: GameHost; options?: GameOptions }>
+  Preview?: ComponentType<PreviewProps>
+  turnBased?: boolean
+  Turn?: ComponentType<TurnProps>
 }

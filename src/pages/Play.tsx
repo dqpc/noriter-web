@@ -35,6 +35,16 @@ export function Play() {
   }
 
   const { Component } = game
+  if (!Component) {
+    return (
+      <section className="page">
+        <p>이 게임은 같이 하기만 지원합니다.</p>
+        <Link to={`/games/${game.id}`} className="btn">
+          돌아가기
+        </Link>
+      </section>
+    )
+  }
   return (
     <section className="page play">
       <div className="play-bar">
