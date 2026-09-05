@@ -10,8 +10,8 @@ export interface StairsRules {
 }
 
 export const SPEEDS: Record<string, StairsRules> = {
-  normal: { maxEnergy: 100, drainPerSec: 28, gainPerStep: 9, drainGrowthPerStep: 0.08 },
-  fast: { maxEnergy: 100, drainPerSec: 38, gainPerStep: 8, drainGrowthPerStep: 0.12 },
+  normal: { maxEnergy: 100, drainPerSec: 22, gainPerStep: 9, drainGrowthPerStep: 0.05 },
+  fast: { maxEnergy: 100, drainPerSec: 30, gainPerStep: 8, drainGrowthPerStep: 0.08 },
 }
 
 export const DEFAULT_SPEED = 'normal'
