@@ -12,7 +12,7 @@ import {
   type RoomSnapshot,
   type RoomStatus,
 } from '../lib/roomClient'
-import { getPreference, setPreference } from '../lib/storage'
+import { getPlayerToken, getPreference, setPreference } from '../lib/storage'
 import { formatDuration } from '../lib/time'
 
 function useNow(active: boolean): number {
@@ -30,6 +30,7 @@ export function Room() {
   const [room, setRoom] = useState<RoomSnapshot | null | undefined>(undefined)
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [nickname, setNickname] = useState(() => getPreference('room', 'nickname') ?? '')
+  const [playerToken] = useState(getPlayerToken)
   const [joined, setJoined] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [connection, setConnection] = useState<'connecting' | 'open' | 'reconnecting' | 'closed'>('connecting')
@@ -54,39 +55,51 @@ export function Room() {
 
   useEffect(() => () => socketRef.current?.close(), [])
 
+  const connect = useCallback(
+    (name: string) => {
+      if (socketRef.current) return
+      setPreference('room', 'nickname', name)
+      const socket = new RoomSocket(roomId, {
+        onOpen: () => {
+          setConnection('open')
+          socket.send({ type: 'join', nickname: name, character, playerId: playerToken })
+        },
+        onReconnecting: () => setConnection('reconnecting'),
+        onMessage: (m) => {
+          if (m.type === 'hello') setPlayerId(m.playerId)
+          else if (m.type === 'room') {
+            statusRef.current = m.room.status
+            setRoom(m.room)
+            setError(null)
+            if (m.room.status === 'WAITING' || m.room.status === 'COUNTDOWN') {
+              setOthers({})
+              setWatching(null)
+              setGameState(null)
+            }
+          } else if (m.type === 'playerState') setOthers((prev) => ({ ...prev, [m.playerId]: m.state }))
+          else if (m.type === 'gameState') setGameState(m.state)
+          else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
+          else if (m.type === 'chatHistory') setChat(m.messages)
+          else if (m.type === 'error') setError(m.message)
+        },
+        onClose: () => setConnection('closed'),
+      })
+      socketRef.current = socket
+      setJoined(true)
+    },
+    [roomId, character, playerToken],
+  )
+
   const join = (e: React.FormEvent) => {
     e.preventDefault()
     const name = nickname.trim()
-    if (!name) return
-    setPreference('room', 'nickname', name)
-    const socket = new RoomSocket(roomId, {
-      onOpen: () => {
-        setConnection('open')
-        socket.send({ type: 'join', nickname: name, character })
-      },
-      onReconnecting: () => setConnection('reconnecting'),
-      onMessage: (m) => {
-        if (m.type === 'hello') setPlayerId(m.playerId)
-        else if (m.type === 'room') {
-          statusRef.current = m.room.status
-          setRoom(m.room)
-          setError(null)
-          if (m.room.status === 'WAITING' || m.room.status === 'COUNTDOWN') {
-            setOthers({})
-            setWatching(null)
-            setGameState(null)
-          }
-        } else if (m.type === 'playerState') setOthers((prev) => ({ ...prev, [m.playerId]: m.state }))
-        else if (m.type === 'gameState') setGameState(m.state)
-        else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
-        else if (m.type === 'chatHistory') setChat(m.messages)
-        else if (m.type === 'error') setError(m.message)
-      },
-      onClose: () => setConnection('closed'),
-    })
-    socketRef.current = socket
-    setJoined(true)
+    if (name) connect(name)
   }
+
+  const mySeat = room?.players.find((p) => p.id === playerToken)
+  useEffect(() => {
+    if (mySeat && !joined) connect(mySeat.nickname)
+  }, [mySeat, joined, connect])
 
   const send = useCallback((msg: Parameters<RoomSocket['send']>[0]) => socketRef.current?.send(msg), [])
 
@@ -169,8 +182,9 @@ export function Room() {
   const ranked = [...room.players].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || b.score - a.score)
 
   if (!joined) {
+    if (mySeat) return <p className="page">다시 연결하는 중…</p>
     const full = room.players.length >= room.maxPlayers
-    const started = room.status !== 'WAITING'
+    const started = room.status !== 'WAITING' && room.status !== 'FINISHED'
     return (
       <section className="page">
         <h1 className="page-title">{room.game.name} 함께 하기</h1>
@@ -336,6 +350,7 @@ export function Room() {
                     <CharacterAvatar id={p.character} size={18} /> {p.nickname}
                     <b>{p.score}</b>
                     {p.finished && <span className="room-done"> 완료</span>}
+                    {!p.connected && <span className="room-done"> 연결 끊김</span>}
                   </span>
                   {others[p.id] && game.Preview ? (
                     <game.Preview
@@ -412,6 +427,7 @@ function Lobby({
             <CharacterAvatar id={p.character} size={32} />
             {p.nickname}
             {p.id === room.hostId && <span className="room-host-badge">방장</span>}
+            {!p.connected && <span className="room-done"> 연결 끊김</span>}
             {p.id === me && (
               <button type="button" className="btn btn-ghost btn-small" onClick={onPick}>
                 바꾸기
@@ -505,6 +521,7 @@ function Scoreboard({ players, me, finished }: { players: PlayerSnapshot[]; me: 
           <span className="room-name">
             <CharacterAvatar id={p.character} size={24} /> {p.nickname}
             {p.finished && !finished && <span className="room-done"> 완료</span>}
+            {!p.connected && <span className="room-done"> 연결 끊김</span>}
           </span>
           <span className="room-score">{p.score}</span>
         </li>
