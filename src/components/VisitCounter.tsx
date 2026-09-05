@@ -14,8 +14,11 @@ export function VisitCounter() {
   }, [])
   if (!stats) return null
   return (
-    <span className="visits" title="브라우저 기준, 하루 한 번 집계">
-      오늘 <b>{stats.today.toLocaleString()}</b> · 전체 <b>{stats.total.toLocaleString()}</b>
-    </span>
+    <dl className="visits" title="브라우저 기준, 하루 한 번 집계">
+      <dt>오늘 방문</dt>
+      <dd className="visits-today">{stats.today.toLocaleString()}</dd>
+      <dt>전체 방문</dt>
+      <dd>{stats.total.toLocaleString()}</dd>
+    </dl>
   )
 }
