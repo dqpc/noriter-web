@@ -27,8 +27,7 @@ function readSeed(options?: GameOptions): number {
 
 export function GameStairs({ host, options }: { host: GameHost; options?: GameOptions }) {
   const roomMode = options?.seed !== undefined
-  const speed = typeof options?.speed === 'string' ? options.speed : undefined
-  const [initial] = useState(() => newStairs(readSeed(options), speed, performance.now()))
+  const [initial] = useState(() => newStairs(readSeed(options), performance.now()))
   const stateRef = useRef<StairsState>(initial)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
@@ -66,12 +65,12 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
 
   const restart = useCallback(() => {
     cancelAnimationFrame(rafRef.current)
-    stateRef.current = newStairs(readSeed(options), speed, performance.now())
+    stateRef.current = newStairs(readSeed(options), performance.now())
     setSteps(0)
     setEnded(null)
     const canvas = canvasRef.current
     if (canvas) draw(canvas, stateRef.current, options)
-  }, [options, speed])
+  }, [options])
 
   useEffect(() => {
     host.onScore(steps)

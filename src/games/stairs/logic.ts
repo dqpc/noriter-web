@@ -10,22 +10,13 @@ export interface StairsRules {
   drainGrowthPerStep: number
 }
 
-export const SPEEDS: Record<string, StairsRules> = {
-  normal: { maxEnergy: 100, drainPerSec: 22, gainPerStep: 9, drainGrowthPerStep: 0.05 },
-  fast: { maxEnergy: 100, drainPerSec: 30, gainPerStep: 8, drainGrowthPerStep: 0.08 },
-}
-
-export const DEFAULT_SPEED = 'normal'
+export const RULES: StairsRules = { maxEnergy: 100, drainPerSec: 22, gainPerStep: 9, drainGrowthPerStep: 0.05 }
 export const BOOST_WINDOW_MS = 120
 export const BOOST_STEPS = 4
 export const BOOST_DURATION_MS = 240
 export const ITEM_MIN_STEP = 5
 export const ITEM_CHANCE = 0.08
 const ITEM_SEED_MIX = 0x9e3779b9
-
-export function rulesFor(speed: string | undefined): StairsRules {
-  return SPEEDS[speed ?? DEFAULT_SPEED] ?? SPEEDS[DEFAULT_SPEED]
-}
 
 export interface StairsState {
   steps: number
@@ -61,8 +52,8 @@ export function makeItems(seed: number): (i: number) => boolean {
   }
 }
 
-export function newStairs(seed: number, speed?: string, now = 0): StairsState {
-  const rules = rulesFor(speed)
+export function newStairs(seed: number, now = 0): StairsState {
+  const rules = RULES
   const dirAt = makePattern(seed)
   return {
     steps: 0,
