@@ -19,8 +19,8 @@ const COLORS = {
   sky: '#1e2a3a',
   stair: '#5b6b7a',
   stairTop: '#9fb3c8',
-  stairNext: '#f59e0b',
-  stairNextTop: '#fbbf24',
+  stairCurrent: '#f59e0b',
+  stairCurrentTop: '#fbbf24',
   hero: '#fde68a',
   energyBg: '#3f3a36',
   energy: '#22c55e',
@@ -74,11 +74,11 @@ export function drawWith(
   for (let i = Math.max(0, steps - 4); i <= steps + VISIBLE_STEPS; i++) {
     const x = camX + stairX(i) - STEP_DX / 2
     const y = camY - i * STEP_DY
-    const next = i === steps + 1
-    ctx.fillStyle = next ? COLORS.stairNext : COLORS.stair
+    const current = i === steps
+    ctx.fillStyle = current ? COLORS.stairCurrent : COLORS.stair
     roundRect(ctx, x, y, STEP_DX, STEP_DY + 6, 4)
     ctx.fill()
-    ctx.fillStyle = next ? COLORS.stairNextTop : COLORS.stairTop
+    ctx.fillStyle = current ? COLORS.stairCurrentTop : COLORS.stairTop
     roundRect(ctx, x, y, STEP_DX, 6, 3)
     ctx.fill()
   }
