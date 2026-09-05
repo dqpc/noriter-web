@@ -40,6 +40,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const throwing = throwKey !== '' && (anim.key !== throwKey || anim.stage === 'roll')
   const showResult = throwKey !== '' && anim.key === throwKey && anim.stage === 'result'
   const result = v.lastEvent?.type === 'throw' ? String(v.lastEvent.result) : ''
+  const animating = throwing || showResult
   const rolling = anim.rolling ?? v.sticks
   const now = useNow(!v.ended)
 
@@ -144,12 +145,13 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
           )}
         </div>
         <div className="yut-sticks" aria-label="윷가락">
-          {v.sticks.map((flat, i) => (
-            <span key={i} className={`yut-stick ${flat ? 'flat' : 'round'}`}>
-              {i === 0 && <i className="yut-mark" />}
-            </span>
-          ))}
-          {!throwing && result && <span className="yut-result">{THROW_LABEL[result] ?? ''}</span>}
+          {!animating &&
+            v.sticks.map((flat, i) => (
+              <span key={i} className={`yut-stick ${flat ? 'flat' : 'round'}`}>
+                {i === 0 && <i className="yut-mark" />}
+              </span>
+            ))}
+          {!animating && result && <span className="yut-result">{THROW_LABEL[result] ?? ''}</span>}
         </div>
       </div>
 
@@ -295,7 +297,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
       </div>
 
       <div className="yut-controls">
-        {(v.queue.length > 0 || v.bonusThrows > 0) && (
+        {!animating && (v.queue.length > 0 || v.bonusThrows > 0) && (
           <div className="yut-queue">
             {v.queue.length > 0 && <span className="room-hint">남은 결과</span>}
             {v.queue.map((r, i) => (
@@ -316,7 +318,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
             윷 던지기
           </button>
         )}
-        {hint && <p className="room-hint yut-hint">{hint}</p>}
+        {hint && !animating && <p className="room-hint yut-hint">{hint}</p>}
         {branch && (
           <div className="yut-branch">
             {branch.map((m) => (
