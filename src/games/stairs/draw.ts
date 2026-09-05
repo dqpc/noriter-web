@@ -69,6 +69,7 @@ export function drawWith(
   maxEnergy: number,
   dirAt: (i: number) => Dir,
   itemAt: (i: number) => boolean = () => false,
+  shown: number = steps,
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -88,9 +89,14 @@ export function drawWith(
     for (let k = 1; k <= i; k++) x += dirAt(k) === 'L' ? -STEP_DX : STEP_DX
     return x
   }
-  const heroX = stairX(steps)
+  const posAt = (p: number) => {
+    const i0 = Math.floor(p)
+    const f = p - i0
+    return [stairX(i0) + (stairX(i0 + 1) - stairX(i0)) * f, p * STEP_DY] as const
+  }
+  const [heroX, heroLift] = posAt(shown)
   const camX = w / 2 - heroX
-  const camY = h * 0.68 + steps * STEP_DY
+  const camY = h * 0.68 + heroLift
 
   for (let i = Math.max(0, steps - 4); i <= steps + VISIBLE_STEPS; i++) {
     const x = camX + stairX(i) - STEP_DX / 2
@@ -106,7 +112,18 @@ export function drawWith(
   }
 
   const hx = camX + heroX
-  const hy = camY - steps * STEP_DY
+  const hy = camY - heroLift
+  if (shown < steps) {
+    for (let k = 1; k <= 3; k++) {
+      const [gx, gl] = posAt(Math.max(0, shown - k * 0.6))
+      ctx.globalAlpha = 0.35 - k * 0.1
+      ctx.fillStyle = COLORS.hero
+      ctx.beginPath()
+      ctx.arc(camX + gx, camY - gl - 14, 9, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
+  }
   ctx.fillStyle = COLORS.hero
   ctx.beginPath()
   ctx.arc(hx, hy - 14, 9, 0, Math.PI * 2)

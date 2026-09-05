@@ -16,6 +16,12 @@ export const SPEEDS: Record<string, StairsRules> = {
 }
 
 export const DEFAULT_SPEED = 'normal'
+export const BOOST_WINDOW_MS = 120
+export const BOOST_STEPS = 4
+export const BOOST_COST = 15
+export const BOOST_MIN_ENERGY = 25
+export const BOOST_COOLDOWN_MS = 2000
+export const BOOST_DURATION_MS = 240
 export const ITEM_MIN_STEP = 5
 export const ITEM_CHANCE = 0.08
 const ITEM_SEED_MIX = 0x9e3779b9
@@ -35,6 +41,9 @@ export interface StairsState {
   rules: StairsRules
   dirAt: (i: number) => Dir
   itemAt: (i: number) => boolean
+  lastTurnAt: number | null
+  lastBoostAt: number | null
+  boost: { from: number; startedAt: number } | null
 }
 
 export function makePattern(seed: number): (i: number) => Dir {
@@ -69,6 +78,9 @@ export function newStairs(seed: number, speed?: string, now = 0): StairsState {
     rules,
     dirAt,
     itemAt: makeItems(seed),
+    lastTurnAt: null,
+    lastBoostAt: null,
+    boost: null,
   }
 }
 
@@ -88,6 +100,7 @@ export function press(state: StairsState, action: Action, now: number): StairsSt
   if (state.ended) return state
   const s = state.startedAt === null ? { ...state, startedAt: now, updatedAt: now } : tick(state, now)
   if (s.ended) return s
+  if (action === 'CLIMB' && canBoost(s, now)) return boost(s, now)
   const facing: Dir = action === 'TURN' ? (s.facing === 'L' ? 'R' : 'L') : s.facing
   if (s.dirAt(s.steps + 1) !== facing) return { ...s, facing, ended: true, fell: true }
   const next = s.steps + 1
@@ -96,9 +109,43 @@ export function press(state: StairsState, action: Action, now: number): StairsSt
     facing,
     steps: next,
     energy: s.itemAt(next) ? s.rules.maxEnergy : Math.min(s.rules.maxEnergy, s.energy + s.rules.gainPerStep),
+    lastTurnAt: action === 'TURN' ? now : s.lastTurnAt,
   }
 }
 
 export function actionFor(state: StairsState, i: number): Action {
   return state.dirAt(i) === state.facing ? 'CLIMB' : 'TURN'
+}
+
+function canBoost(s: StairsState, now: number): boolean {
+  return (
+    s.lastTurnAt !== null &&
+    now - s.lastTurnAt <= BOOST_WINDOW_MS &&
+    s.energy >= BOOST_MIN_ENERGY &&
+    (s.lastBoostAt === null || now - s.lastBoostAt >= BOOST_COOLDOWN_MS)
+  )
+}
+
+function boost(s: StairsState, now: number): StairsState {
+  const from = s.steps
+  const to = from + BOOST_STEPS
+  let energy = s.energy - BOOST_COST
+  for (let i = from + 1; i <= to; i++) if (s.itemAt(i)) energy = s.rules.maxEnergy
+  return {
+    ...s,
+    steps: to,
+    facing: s.dirAt(to),
+    energy,
+    lastTurnAt: null,
+    lastBoostAt: now,
+    boost: { from, startedAt: now },
+  }
+}
+
+/** 부스터 애니메이션용 표시 위치 (계단 단위, 소수) */
+export function displaySteps(s: StairsState, now: number): number {
+  if (!s.boost) return s.steps
+  const t = Math.min(1, (now - s.boost.startedAt) / BOOST_DURATION_MS)
+  const eased = 1 - (1 - t) * (1 - t)
+  return s.boost.from + (s.steps - s.boost.from) * eased
 }
