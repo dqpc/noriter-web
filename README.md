@@ -17,12 +17,14 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 |---|---|---|
 | 2048 | 방향키 / 스와이프 | 목표 타일 512·1024·2048 선택, 클리어 타임 기록 |
 | 계단 오르기 | Shift 방향전환, Space 오르기 / 좌우 버튼 | 에너지 바, 번개 아이템, 히든 부스터(방향전환 직후 오르기) |
+| 윷놀이 | 클릭 (던지기 → 결과 칩 → 말/도착 칸) | 2~4인 같이 하기 전용. 규칙·난수는 서버, 화면은 서버 판을 그리기만 |
 
 ## 기능
 
 - **혼자 하기 / 같이 하기**: 게임을 고르면 선택 화면. 같이 하기는 방을 만들고 초대 링크(`/rooms/{id}`)로 부른다.
 - **방**: 닉네임 입장, 방장 설정(최대 인원, 게임 옵션), 3초 카운트다운 후 같은 seed 로 동시 시작, 실시간 점수판, 제한 시간, 순위. 방장의 다시 하기로 바로 재시작.
 - **관전**: 다른 참가자 화면이 미니 뷰로 실시간 표시. 내가 끝나면 관전 화면으로 전환, ← → 로 대상 변경.
+- **턴제 게임**: 윷놀이처럼 판이 하나인 게임은 서버가 상태를 갖고 `gameState` 를 내려준다. 화면은 `GameDefinition.Turn` 이 그리고 `action` 만 보낸다. 캐릭터가 겹치면 시작할 수 없다.
 - **채팅**: 대기실·결과 화면(PC 는 진행 중에도) 채팅, 입장·퇴장 알림. 저장하지 않는다.
 - **캐릭터**: 십이지신 12마리 중 선택(홈·입장 화면·대기실). 처음엔 랜덤. 모든 게임이 같은 캐릭터를 쓴다.
 - 연결이 끊기면 자동 재접속. 진행도·최고 점수·설정은 localStorage.
@@ -55,7 +57,7 @@ npm run build      # dist/
 src/
   games/            게임 모듈. registry.ts 에 등록하면 목록·방·관전에 자동 반영
     <id>/logic.ts   순수 로직(테스트), Game*.tsx Canvas 렌더, Preview*.tsx 미니 뷰, Icon*.tsx
-    types.ts        GameDefinition / GameHost(onScore·onGameOver·onState) / PreviewProps
+    types.ts        GameDefinition / GameHost(onScore·onGameOver·onState) / PreviewProps / TurnProps(턴제)
   characters/       공통 캐릭터(SVG 12종, 피커, 캔버스 이미지)
   pages/            Home, GameEntry(혼자/같이), Play(솔로), Room(대기실·게임·관전·결과)
   lib/              api.ts(주소), roomClient.ts(REST+WebSocket, 하트비트·재접속), storage.ts, random.ts, time.ts
