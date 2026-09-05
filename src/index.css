@@ -806,6 +806,8 @@ button.room-me {
 .stage-overlay.countdown {
   background: rgba(28, 25, 23, 0.45);
   pointer-events: none;
+  place-items: start center;
+  padding-top: 22%;
 }
 .countdown-num {
   font-size: 120px;
@@ -859,5 +861,26 @@ button.room-me {
   .fade-in, .countdown-num, .stage-overlay.results, .results-panel, .results-list li {
     animation-duration: 0.01s !important;
     animation-delay: 0s !important;
+  }
+}
+
+/* Desktop: 게임판을 더 크게 */
+@media (min-width: 720px) {
+  .room-live .room-play {
+    max-width: 600px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .room-live .stairs-board-wrap {
+    height: min(72dvh, 680px);
+  }
+  .room-live .stairs-pads {
+    grid-template-columns: 1fr 1fr;
+  }
+  .room-live .stairs-pad {
+    height: 72px;
+  }
+  .room-live .g2048-board-wrap {
+    max-width: min(100%, calc(100dvh - 240px));
   }
 }
