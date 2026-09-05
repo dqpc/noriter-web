@@ -448,14 +448,20 @@ body {
   word-break: break-word;
 }
 .chat-form {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   padding: 10px;
   border-top: 1px solid var(--surface-2);
+  min-width: 0;
 }
 .chat-form .input {
-  flex: 1;
+  width: 100%;
   min-width: 0;
+}
+.chat-form .btn {
+  white-space: nowrap;
+  padding-inline: 12px;
 }
 
 /* Stairs */
@@ -606,9 +612,6 @@ body {
   .room-layout {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
-  }
-  .chat-form .btn {
-    padding-inline: 10px;
   }
 }
 
