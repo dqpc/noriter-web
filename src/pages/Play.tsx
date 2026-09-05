@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { GameHost, GameMode } from '../games/types'
+import type { GameHost } from '../games/types'
 import { findGame } from '../games/registry'
 import { createRoom } from '../lib/roomClient'
 import { getBestScore, setBestScore } from '../lib/storage'
@@ -38,10 +38,10 @@ export function Play() {
   }
 
   const { Component } = game
-  const startRoom = async (mode: GameMode) => {
+  const startRoom = async () => {
     setCreating(true)
     try {
-      const room = await createRoom(game.id, mode)
+      const room = await createRoom(game.id)
       navigate(`/rooms/${room.id}`)
     } catch (e) {
       alert(e instanceof Error ? e.message : '방을 만들지 못했습니다')
@@ -58,14 +58,9 @@ export function Play() {
         <span className="play-best">
           BEST <b>{best}</b>
         </span>
-        <button type="button" className="btn btn-ghost" onClick={() => startRoom('VERSUS')} disabled={creating}>
-          대전
+        <button type="button" className="btn btn-ghost" onClick={startRoom} disabled={creating}>
+          함께 하기
         </button>
-        {game.modes.includes('COOP') && (
-          <button type="button" className="btn btn-ghost" onClick={() => startRoom('COOP')} disabled={creating}>
-            협동
-          </button>
-        )}
       </div>
       <Component host={host} />
       <aside className="ad-slot" aria-hidden="true">

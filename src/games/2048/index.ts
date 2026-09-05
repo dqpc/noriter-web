@@ -7,6 +7,5 @@ export const game2048: GameDefinition = {
   name: '2048',
   description: '같은 숫자를 합쳐 2048 을 만드세요.',
   Icon: Icon2048,
-  modes: ['VERSUS'],
   Component: Game2048,
 }
