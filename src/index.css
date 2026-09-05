@@ -598,6 +598,9 @@ body {
 .app-main:has(.room) {
   max-width: 860px;
 }
+.app-main:has(.room-live) {
+  max-width: 1200px;
+}
 .room-layout {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
@@ -732,4 +735,46 @@ button.room-me {
 }
 .spectate-view .preview-canvas.tall {
   aspect-ratio: 4 / 5;
+}
+
+/* In-game: 채팅 | 내 게임 | 다른 참가자 */
+.room-live {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.room-live-chat {
+  display: none;
+}
+.room-live .room-others {
+  margin-top: 0;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+}
+@media (min-width: 720px) {
+  .room-live {
+    grid-template-columns: minmax(0, 1fr) 232px;
+  }
+  .room-live .room-others {
+    grid-template-columns: repeat(2, 1fr);
+    position: sticky;
+    top: 12px;
+  }
+}
+@media (min-width: 1040px) {
+  .room-live {
+    grid-template-columns: 260px minmax(0, 1fr) 232px;
+  }
+  .room-live-chat {
+    display: block;
+    position: sticky;
+    top: 12px;
+  }
+  .chat-compact {
+    min-height: 320px;
+    max-height: 80dvh;
+  }
+  .chat-compact .chat-list p {
+    font-size: 13px;
+  }
 }
