@@ -27,7 +27,8 @@ function readSeed(options?: GameOptions): number {
 
 export function GameStairs({ host, options }: { host: GameHost; options?: GameOptions }) {
   const roomMode = options?.seed !== undefined
-  const [initial] = useState(() => newStairs(readSeed(options), performance.now(), roomMode))
+  const frozen = options?.frozen === true
+  const [initial] = useState(() => newStairs(readSeed(options), performance.now(), roomMode && !frozen))
   const stateRef = useRef<StairsState>(initial)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
@@ -50,7 +51,7 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   const input = useCallback(
     (action: Action) => {
       const before = stateRef.current
-      if (before.ended) return
+      if (before.ended || frozen) return
       const after = press(before, action, performance.now())
       stateRef.current = after
       if (after.steps !== before.steps) setSteps(after.steps)
@@ -70,7 +71,7 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
         rafRef.current = requestAnimationFrame(frame)
       }
     },
-    [frame, options, host],
+    [frame, options, host, frozen],
   )
 
   const restart = useCallback(() => {
@@ -82,6 +83,22 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
     if (canvas) draw(canvas, stateRef.current, options)
     if (roomMode) rafRef.current = requestAnimationFrame(frame)
   }, [options, roomMode, frame])
+
+  useEffect(() => {
+    if (!roomMode) return
+    const s = stateRef.current
+    if (!frozen && s.startedAt === null && !s.ended) {
+      const now = performance.now()
+      stateRef.current = { ...s, startedAt: now, updatedAt: now }
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(frame)
+    }
+    if (frozen && s.startedAt !== null && !s.ended) {
+      cancelAnimationFrame(rafRef.current)
+      stateRef.current = { ...tick(s, performance.now()), ended: true }
+      setEnded({ fell: false })
+    }
+  }, [frozen, roomMode, frame])
 
   useEffect(() => {
     host.onScore(steps)

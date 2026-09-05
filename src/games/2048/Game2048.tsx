@@ -84,6 +84,7 @@ function makeRng(options?: GameOptions): () => number {
 
 export function Game2048({ host, options }: { host: GameHost; options?: GameOptions }) {
   const fixedTarget = readTarget(options)
+  const frozen = options?.frozen === true
   const roomMode = fixedTarget !== null
   const [target, setTarget] = useState<number | null>(fixedTarget)
   const [initial] = useState(() => {
@@ -127,7 +128,7 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
 
   const play = useCallback(
     (dir: Direction) => {
-      if (target === null) return
+      if (target === null || frozen) return
       const res = stepWithTrace(stateRef.current, dir, rngRef.current)
       if (!res.moved) return
       if (startedAt.current === null) startedAt.current = performance.now()
@@ -145,7 +146,7 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
       host.onState?.({ board: res.state.board, score: res.state.score, ended: isEnded(res.state) })
       render()
     },
-    [render, target, host],
+    [render, target, host, frozen],
   )
 
   const startWith = useCallback(
