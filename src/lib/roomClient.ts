@@ -47,13 +47,13 @@ export interface ChatMessage {
 
 export type ServerMessage =
   | { type: 'hello'; playerId: string }
-  | { type: 'room'; room: RoomSnapshot }
+  | { type: 'room'; room: RoomSnapshot; serverTime?: string }
   | { type: 'error'; message: string }
   | { type: 'chat'; message: ChatMessage }
   | { type: 'chatHistory'; messages: ChatMessage[] }
   | { type: 'pong' }
   | { type: 'playerState'; playerId: string; state: Record<string, unknown> }
-  | { type: 'gameState'; state: Record<string, unknown> }
+  | { type: 'gameState'; state: Record<string, unknown>; serverTime?: string }
 
 export type ClientMessage =
   | { type: 'join'; nickname: string; character: string; playerId: string }
