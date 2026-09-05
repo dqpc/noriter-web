@@ -232,7 +232,7 @@ export function Room() {
       )}
 
       {inGame && game && (
-        <div className="room-live fade-in">
+        <div className={`room-live fade-in ${turnBased ? 'turn' : ''}`}>
           {inGame && (
             <div className="room-live-chat">
               <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
