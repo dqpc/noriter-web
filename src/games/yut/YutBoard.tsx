@@ -61,10 +61,15 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const rolling = anim.rolling ?? v.sticks
   const now = useNow(!v.ended)
 
-  const myTurn = me !== null && v.turn === me && !v.ended
-  const bots = v.players.filter((p) => p.bot)
   const motion = useMotion(v)
-  const botTurn = !v.ended && bots.some((p) => p.id === v.turn)
+  const busy = Object.keys(motion.overrides).length > 0 || motion.linger.length > 0 || motion.captures.length > 0
+  const [shown, setShown] = useState({ turn: v.turn, phase: v.phase })
+  if (!busy && (shown.turn !== v.turn || shown.phase !== v.phase)) setShown({ turn: v.turn, phase: v.phase })
+  const turn = shown.turn
+  const phase = shown.phase
+  const myTurn = me !== null && turn === me && !v.ended && !busy
+  const bots = v.players.filter((p) => p.bot)
+  const botTurn = !v.ended && bots.some((p) => p.id === turn)
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
   const nameOf = (id: string) => byId.get(id)?.nickname ?? id
   const characterOf = (id: string) => byId.get(id)?.character ?? null
@@ -101,7 +106,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
     }
   }, [throwKey])
 
-  const active = myTurn && v.phase === 'MOVE' && !throwing
+  const active = myTurn && phase === 'MOVE' && !throwing
   const myPieces = me ? (v.players.find((p) => p.id === me)?.pieces ?? []) : []
   const waitingIds = new Set(myPieces.filter((pc) => pc.path === null && !pc.finished).map((pc) => pc.id))
   const keyOf = (m: YutMove): PieceKey => (waitingIds.has(m.pieceId) ? 'new' : m.pieceId)
@@ -162,16 +167,16 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
           ) : (
             <>
               <span className={`yut-turn-badge ${myTurn ? 'mine' : ''}`}>{myTurn ? '내 차례' : '상대 차례'}</span>
-              <CharacterAvatar id={characterOf(v.turn)} size={26} />
-              <b>{nameOf(v.turn)}</b>
+              <CharacterAvatar id={characterOf(turn)} size={26} />
+              <b>{nameOf(turn)}</b>
               <span className="yut-turn-phase">
                 {myTurn
-                  ? v.phase === 'THROW'
+                  ? phase === 'THROW'
                     ? '던지세요'
                     : '말을 고르세요'
                   : botTurn
                     ? '자동 진행 중'
-                    : v.phase === 'THROW'
+                    : phase === 'THROW'
                       ? '던지는 중'
                       : '말 고르는 중'}
               </span>
@@ -386,7 +391,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
             {v.bonusThrows > 0 && <span className="room-hint">한 번 더 ×{v.bonusThrows}</span>}
           </div>
         )}
-        {myTurn && v.phase === 'THROW' && (
+        {myTurn && phase === 'THROW' && (
           <button
             type="button"
             className="btn yut-throw"
@@ -411,7 +416,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
 
       <ol className="yut-players">
         {v.players.map((p) => (
-          <li key={p.id} className={p.id === v.turn && !v.ended ? 'current' : ''}>
+          <li key={p.id} className={p.id === turn && !v.ended ? 'current' : ''}>
             <CharacterAvatar id={characterOf(p.id)} size={24} />
             <span className="yut-player-name">
               {nameOf(p.id)}
