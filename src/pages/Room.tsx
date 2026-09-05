@@ -12,7 +12,7 @@ import {
   type RoomSnapshot,
   type RoomStatus,
 } from '../lib/roomClient'
-import { getPreference, setPreference } from '../lib/storage'
+import { forgetRoom, getPlayerToken, getPreference, rememberRoom, setPreference } from '../lib/storage'
 import { formatDuration } from '../lib/time'
 
 function useNow(active: boolean): number {
@@ -30,6 +30,7 @@ export function Room() {
   const [room, setRoom] = useState<RoomSnapshot | null | undefined>(undefined)
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [nickname, setNickname] = useState(() => getPreference('room', 'nickname') ?? '')
+  const [playerToken] = useState(getPlayerToken)
   const [joined, setJoined] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [connection, setConnection] = useState<'connecting' | 'open' | 'reconnecting' | 'closed'>('connecting')
@@ -38,6 +39,10 @@ export function Room() {
   const [picking, setPicking] = useState(false)
   const [others, setOthers] = useState<Record<string, Record<string, unknown>>>({})
   const [watching, setWatching] = useState<string | null>(null)
+  const [gameState, setGameState] = useState<Record<string, unknown> | null>(null)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatSeen, setChatSeen] = useState(0)
+  const chatLen = useRef(0)
   const socketRef = useRef<RoomSocket | null>(null)
   const statusRef = useRef<RoomStatus | null>(null)
 
@@ -53,37 +58,60 @@ export function Room() {
 
   useEffect(() => () => socketRef.current?.close(), [])
 
+  const connect = useCallback(
+    (name: string) => {
+      if (socketRef.current) return
+      setPreference('room', 'nickname', name)
+      if (room) rememberRoom(roomId, room.gameId)
+      const socket = new RoomSocket(roomId, {
+        onOpen: () => {
+          setConnection('open')
+          socket.send({ type: 'join', nickname: name, character, playerId: playerToken })
+        },
+        onReconnecting: () => setConnection('reconnecting'),
+        onMessage: (m) => {
+          if (m.type === 'hello') setPlayerId(m.playerId)
+          else if (m.type === 'room') {
+            if (statusRef.current === 'WAITING' && m.room.status === 'COUNTDOWN') setChatSeen(chatLen.current)
+            statusRef.current = m.room.status
+            setRoom(m.room)
+            setError(null)
+            if (m.room.status === 'WAITING' || m.room.status === 'COUNTDOWN') {
+              setOthers({})
+              setWatching(null)
+              setGameState(null)
+            }
+          } else if (m.type === 'playerState') setOthers((prev) => ({ ...prev, [m.playerId]: m.state }))
+          else if (m.type === 'gameState') setGameState(m.state)
+          else if (m.type === 'chat') {
+            chatLen.current += 1
+            setChat((prev) => [...prev.slice(-99), m.message])
+          } else if (m.type === 'chatHistory') {
+            chatLen.current = m.messages.length
+            setChat(m.messages)
+          } else if (m.type === 'error') setError(m.message)
+        },
+        onClose: () => {
+          forgetRoom(roomId)
+          setConnection('closed')
+        },
+      })
+      socketRef.current = socket
+      setJoined(true)
+    },
+    [roomId, character, playerToken, room],
+  )
+
   const join = (e: React.FormEvent) => {
     e.preventDefault()
     const name = nickname.trim()
-    if (!name) return
-    setPreference('room', 'nickname', name)
-    const socket = new RoomSocket(roomId, {
-      onOpen: () => {
-        setConnection('open')
-        socket.send({ type: 'join', nickname: name, character })
-      },
-      onReconnecting: () => setConnection('reconnecting'),
-      onMessage: (m) => {
-        if (m.type === 'hello') setPlayerId(m.playerId)
-        else if (m.type === 'room') {
-          statusRef.current = m.room.status
-          setRoom(m.room)
-          setError(null)
-          if (m.room.status === 'WAITING' || m.room.status === 'COUNTDOWN') {
-            setOthers({})
-            setWatching(null)
-          }
-        } else if (m.type === 'playerState') setOthers((prev) => ({ ...prev, [m.playerId]: m.state }))
-        else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
-        else if (m.type === 'chatHistory') setChat(m.messages)
-        else if (m.type === 'error') setError(m.message)
-      },
-      onClose: () => setConnection('closed'),
-    })
-    socketRef.current = socket
-    setJoined(true)
+    if (name) connect(name)
   }
+
+  const mySeat = room?.players.find((p) => p.id === playerToken)
+  useEffect(() => {
+    if (mySeat && !joined) connect(mySeat.nickname)
+  }, [mySeat, joined, connect])
 
   const send = useCallback((msg: Parameters<RoomSocket['send']>[0]) => socketRef.current?.send(msg), [])
 
@@ -92,6 +120,8 @@ export function Room() {
     setCharacter(id)
     if (joined) send({ type: 'character', character: id })
   }
+
+  const sendAction = useCallback((action: Record<string, unknown>) => send({ type: 'action', action }), [send])
 
   const host = useMemo<GameHost>(
     () => ({
@@ -156,15 +186,19 @@ export function Room() {
   const isHost = playerId !== null && room.hostId === playerId
   const otherPlayers = room.players.filter((p) => p.id !== playerId)
   const inGame = room.status === 'COUNTDOWN' || room.status === 'PLAYING' || room.status === 'FINISHED'
+  const turnBased = room.game.turnBased && Boolean(game?.Turn)
   const playing = otherPlayers.filter((p) => !p.finished)
   const spectating = Boolean(me?.finished) && playing.length > 0
   const watchTarget = playing.find((p) => p.id === watching) ?? playing[0] ?? null
   const countdownLeft = Math.max(0, Math.ceil((new Date(room.startAt ?? 0).getTime() - now) / 1000))
   const ranked = [...room.players].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || b.score - a.score)
 
+  const unread = chatOpen ? 0 : chat.slice(Math.min(chatSeen, chat.length)).filter((m) => !m.system).length
+
   if (!joined) {
+    if (mySeat) return <p className="page">다시 연결하는 중…</p>
     const full = room.players.length >= room.maxPlayers
-    const started = room.status !== 'WAITING'
+    const started = room.status !== 'WAITING' && room.status !== 'FINISHED'
     return (
       <section className="page">
         <h1 className="page-title">{room.game.name} 함께 하기</h1>
@@ -212,6 +246,25 @@ export function Room() {
         <button type="button" className="play-best room-me" onClick={() => setPicking(true)} aria-label="캐릭터 변경">
           <CharacterAvatar id={me?.character ?? character} size={28} /> {me?.nickname ?? nickname}
         </button>
+        {inGame && (
+          <button
+            type="button"
+            className={`chat-fab ${unread > 0 ? 'has-unread' : ''}`}
+            aria-label="채팅 열기"
+            onClick={() => {
+              setChatOpen(true)
+              setChatSeen(chat.length)
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+              <path
+                fill="currentColor"
+                d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+              />
+            </svg>
+            {unread > 0 && <span className="chat-fab-badge">{unread > 99 ? '99+' : unread}</span>}
+          </button>
+        )}
       </div>
       {picking && <CharacterPicker value={character} onChange={changeCharacter} onClose={() => setPicking(false)} />}
       {error && <p className="room-error">{error}</p>}
@@ -226,7 +279,7 @@ export function Room() {
       )}
 
       {inGame && game && (
-        <div className="room-live fade-in">
+        <div className={`room-live fade-in ${turnBased ? 'turn' : ''}`}>
           {inGame && (
             <div className="room-live-chat">
               <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
@@ -243,7 +296,13 @@ export function Room() {
                     : ''}
             </div>
             <div className="stage">
-              {room.status !== 'COUNTDOWN' && spectating && watchTarget ? (
+              {turnBased && game.Turn ? (
+                gameState ? (
+                  <game.Turn view={gameState} me={playerId} players={room.players} onAction={sendAction} />
+                ) : (
+                  <p className="room-hint">판을 준비하는 중…</p>
+                )
+              ) : room.status !== 'COUNTDOWN' && spectating && watchTarget ? (
                 <Spectate
                   game={game}
                   room={room}
@@ -253,7 +312,7 @@ export function Room() {
                   onPrev={() => cycle(-1)}
                   onNext={() => cycle(1)}
                 />
-              ) : (
+              ) : game.Component ? (
                 <game.Component
                   key={room.seed}
                   host={host}
@@ -264,7 +323,7 @@ export function Room() {
                     frozen: room.status !== 'PLAYING',
                   }}
                 />
-              )}
+              ) : null}
               {room.status === 'COUNTDOWN' && (
                 <div className="stage-overlay countdown">
                   <span key={countdownLeft} className="countdown-num">
@@ -307,9 +366,11 @@ export function Room() {
                 </div>
               )}
             </div>
-            {room.status !== 'FINISHED' && <Scoreboard players={room.players} me={playerId} finished={false} />}
+            {!turnBased && room.status !== 'FINISHED' && (
+              <Scoreboard players={room.players} me={playerId} finished={false} />
+            )}
           </div>
-          {room.status !== 'WAITING' && otherPlayers.length > 0 && (
+          {!turnBased && room.status !== 'WAITING' && otherPlayers.length > 0 && (
             <div className="room-others">
               {otherPlayers.map((p) => (
                 <button
@@ -322,8 +383,9 @@ export function Room() {
                     <CharacterAvatar id={p.character} size={18} /> {p.nickname}
                     <b>{p.score}</b>
                     {p.finished && <span className="room-done"> 완료</span>}
+                    {!p.connected && <span className="room-done"> 연결 끊김</span>}
                   </span>
-                  {others[p.id] ? (
+                  {others[p.id] && game.Preview ? (
                     <game.Preview
                       state={others[p.id]}
                       options={{ ...room.options, seed: room.seed }}
@@ -334,6 +396,24 @@ export function Room() {
                   )}
                 </button>
               ))}
+            </div>
+          )}
+          {chatOpen && (
+            <div className="chat-sheet" role="dialog" aria-label="채팅">
+              <div className="chat-sheet-head">
+                <span>채팅</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  onClick={() => {
+                    setChatOpen(false)
+                    setChatSeen(chat.length)
+                  }}
+                >
+                  닫기
+                </button>
+              </div>
+              <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
             </div>
           )}
         </div>
@@ -372,7 +452,9 @@ function Lobby({
     { length: room.game.maxPlayersLimit - room.game.minPlayers + 1 },
     (_, i) => room.game.minPlayers + i,
   )
-  const canStart = room.players.length >= room.game.minPlayers
+  const duplicate =
+    room.game.uniqueCharacters && new Set(room.players.map((p) => p.character)).size < room.players.length
+  const canStart = room.players.length >= room.game.minPlayers && !duplicate
 
   return (
     <div className="room-lobby">
@@ -396,6 +478,7 @@ function Lobby({
             <CharacterAvatar id={p.character} size={32} />
             {p.nickname}
             {p.id === room.hostId && <span className="room-host-badge">방장</span>}
+            {!p.connected && <span className="room-done"> 연결 끊김</span>}
             {p.id === me && (
               <button type="button" className="btn btn-ghost btn-small" onClick={onPick}>
                 바꾸기
@@ -449,6 +532,9 @@ function Lobby({
             </div>
           </div>
         ))}
+        {room.game.uniqueCharacters && duplicate && (
+          <p className="room-error">이 게임은 캐릭터가 겹치면 안 됩니다. 이름 옆 바꾸기로 바꿔 주세요.</p>
+        )}
         {room.game.matchDurationSeconds && (
           <p className="room-hint">제한 시간 {Math.round(room.game.matchDurationSeconds / 60)}분</p>
         )}
@@ -456,7 +542,7 @@ function Lobby({
 
       {isHost ? (
         <button type="button" className="btn room-start" disabled={!canStart} onClick={() => send({ type: 'start' })}>
-          {canStart ? '시작' : `${room.game.minPlayers}명 이상 필요`}
+          {canStart ? '시작' : duplicate ? '같은 캐릭터가 있어요' : `${room.game.minPlayers}명 이상 필요`}
         </button>
       ) : (
         <p className="room-hint">방장이 시작하기를 기다리는 중…</p>
@@ -465,7 +551,7 @@ function Lobby({
   )
 }
 
-const OPTION_LABELS: Record<string, string> = { target: '목표 타일' }
+const OPTION_LABELS: Record<string, string> = { target: '목표 타일', pieces: '말 개수' }
 const OPTION_VALUES: Record<string, string> = { normal: '보통', fast: '빠름' }
 
 function optionLabel(key: string): string {
@@ -486,6 +572,7 @@ function Scoreboard({ players, me, finished }: { players: PlayerSnapshot[]; me: 
           <span className="room-name">
             <CharacterAvatar id={p.character} size={24} /> {p.nickname}
             {p.finished && !finished && <span className="room-done"> 완료</span>}
+            {!p.connected && <span className="room-done"> 연결 끊김</span>}
           </span>
           <span className="room-score">{p.score}</span>
         </li>
@@ -526,11 +613,13 @@ function Chat({
           m.system ? (
             <p key={i} className="chat-system">
               {m.text}
+              <time className="chat-time">{formatClock(m.sentAt)}</time>
             </p>
           ) : (
             <p key={i} className={m.playerId === me ? 'chat-msg me' : 'chat-msg'}>
               <span className="chat-name">{m.nickname}</span>
               <span className="chat-text">{m.text}</span>
+              <time className="chat-time">{formatClock(m.sentAt)}</time>
             </p>
           ),
         )}
@@ -550,6 +639,19 @@ function Chat({
       </form>
     </div>
   )
+}
+
+const clockFormat = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul',
+  hour12: false,
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+})
+
+function formatClock(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : clockFormat.format(d)
 }
 
 function Spectate({
@@ -583,7 +685,7 @@ function Spectate({
         </button>
       </div>
       <div className="spectate-view">
-        {state ? (
+        {state && game.Preview ? (
           <game.Preview state={state} options={{ ...room.options, seed: room.seed }} character={target.character} />
         ) : (
           <p className="room-hint">아직 움직임이 없습니다.</p>

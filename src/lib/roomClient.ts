@@ -10,6 +10,7 @@ export interface PlayerSnapshot {
   score: number
   finished: boolean
   rank: number | null
+  connected: boolean
 }
 
 export interface GameInfo {
@@ -18,6 +19,8 @@ export interface GameInfo {
   maxPlayersLimit: number
   matchDurationSeconds: number | null
   optionChoices: Record<string, OptionValue[]>
+  turnBased: boolean
+  uniqueCharacters: boolean
 }
 
 export interface RoomSnapshot {
@@ -50,9 +53,10 @@ export type ServerMessage =
   | { type: 'chatHistory'; messages: ChatMessage[] }
   | { type: 'pong' }
   | { type: 'playerState'; playerId: string; state: Record<string, unknown> }
+  | { type: 'gameState'; state: Record<string, unknown> }
 
 export type ClientMessage =
-  | { type: 'join'; nickname: string; character: string }
+  | { type: 'join'; nickname: string; character: string; playerId: string }
   | { type: 'settings'; maxPlayers?: number; options?: Record<string, OptionValue> }
   | { type: 'start' }
   | { type: 'score'; score: number }
@@ -62,6 +66,7 @@ export type ClientMessage =
   | { type: 'ping' }
   | { type: 'rematch' }
   | { type: 'state'; state: Record<string, unknown> }
+  | { type: 'action'; action: Record<string, unknown> }
 
 export async function createRoom(gameId: string): Promise<RoomSnapshot> {
   const res = await fetch(`${API_URL}/api/rooms`, {

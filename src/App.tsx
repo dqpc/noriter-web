@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import { Home } from './pages/Home'
 import { GameEntry } from './pages/GameEntry'
 import { Play } from './pages/Play'
+import { VisitCounter } from './components/VisitCounter'
 import { Room } from './pages/Room'
 
 export default function App() {
@@ -15,7 +16,10 @@ export default function App() {
           <Route path="/rooms/:roomId" element={<Room />} />
         </Routes>
       </main>
-      <footer className="app-footer">noriter</footer>
+      <footer className="app-footer">
+        <span>noriter</span>
+        <VisitCounter />
+      </footer>
     </div>
   )
 }
