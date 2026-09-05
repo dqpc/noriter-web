@@ -6,6 +6,7 @@ import {
   RoomSocket,
   createRoom,
   fetchRoom,
+  type ChatMessage,
   type OptionValue,
   type PlayerSnapshot,
   type RoomSnapshot,
@@ -32,6 +33,7 @@ export function Room() {
   const [joined, setJoined] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [disconnected, setDisconnected] = useState(false)
+  const [chat, setChat] = useState<ChatMessage[]>([])
   const socketRef = useRef<RoomSocket | null>(null)
 
   useEffect(() => {
@@ -55,6 +57,8 @@ export function Room() {
       onMessage: (m) => {
         if (m.type === 'hello') setPlayerId(m.playerId)
         else if (m.type === 'room') setRoom(m.room)
+        else if (m.type === 'chat') setChat((prev) => [...prev.slice(-99), m.message])
+        else if (m.type === 'chatHistory') setChat(m.messages)
         else setError(m.message)
       },
       onClose: () => setDisconnected(true),
@@ -146,7 +150,10 @@ export function Room() {
       {disconnected && <p className="room-error">연결이 끊어졌습니다. 새로고침해 주세요.</p>}
 
       {room.status === 'WAITING' && (
-        <Lobby room={room} isHost={isHost} send={send} />
+        <>
+          <Lobby room={room} isHost={isHost} send={send} />
+          <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} />
+        </>
       )}
 
       {room.status === 'COUNTDOWN' && (
@@ -187,6 +194,9 @@ export function Room() {
                 목록으로
               </Link>
             </div>
+          )}
+          {room.status === 'FINISHED' && (
+            <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} />
           )}
         </div>
       )}
@@ -321,5 +331,53 @@ function Scoreboard({ players, me, finished }: { players: PlayerSnapshot[]; me: 
         </li>
       ))}
     </ol>
+  )
+}
+
+function Chat({ messages, me, onSend }: { messages: ChatMessage[]; me: string | null; onSend: (text: string) => void }) {
+  const [text, setText] = useState('')
+  const listRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = listRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages])
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const t = text.trim()
+    if (!t) return
+    onSend(t)
+    setText('')
+  }
+  return (
+    <div className="chat">
+      <div className="chat-list" ref={listRef}>
+        {messages.length === 0 && <p className="room-hint">아직 대화가 없습니다.</p>}
+        {messages.map((m, i) =>
+          m.system ? (
+            <p key={i} className="chat-system">
+              {m.text}
+            </p>
+          ) : (
+            <p key={i} className={m.playerId === me ? 'chat-msg me' : 'chat-msg'}>
+              <span className="chat-name">{m.nickname}</span>
+              <span className="chat-text">{m.text}</span>
+            </p>
+          ),
+        )}
+      </div>
+      <form className="chat-form" onSubmit={submit}>
+        <input
+          className="input"
+          value={text}
+          maxLength={200}
+          placeholder="메시지"
+          enterKeyHint="send"
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button type="submit" className="btn" disabled={!text.trim()}>
+          보내기
+        </button>
+      </form>
+    </div>
   )
 }

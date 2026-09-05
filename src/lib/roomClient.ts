@@ -33,10 +33,20 @@ export interface RoomSnapshot {
   players: PlayerSnapshot[]
 }
 
+export interface ChatMessage {
+  playerId: string | null
+  nickname: string | null
+  text: string
+  system: boolean
+  sentAt: string
+}
+
 export type ServerMessage =
   | { type: 'hello'; playerId: string }
   | { type: 'room'; room: RoomSnapshot }
   | { type: 'error'; message: string }
+  | { type: 'chat'; message: ChatMessage }
+  | { type: 'chatHistory'; messages: ChatMessage[] }
 
 export type ClientMessage =
   | { type: 'join'; nickname: string }
@@ -44,6 +54,7 @@ export type ClientMessage =
   | { type: 'start' }
   | { type: 'score'; score: number }
   | { type: 'finish'; score: number }
+  | { type: 'chat'; text: string }
 
 export async function createRoom(gameId: string): Promise<RoomSnapshot> {
   const res = await fetch(`${API_URL}/api/rooms`, {
