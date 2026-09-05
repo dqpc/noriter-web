@@ -242,6 +242,25 @@ export function Room() {
         <button type="button" className="play-best room-me" onClick={() => setPicking(true)} aria-label="캐릭터 변경">
           <CharacterAvatar id={me?.character ?? character} size={28} /> {me?.nickname ?? nickname}
         </button>
+        {inGame && (
+          <button
+            type="button"
+            className={`chat-fab ${unread > 0 ? 'has-unread' : ''}`}
+            aria-label="채팅 열기"
+            onClick={() => {
+              setChatOpen(true)
+              setChatSeen(chat.length)
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+              <path
+                fill="currentColor"
+                d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+              />
+            </svg>
+            {unread > 0 && <span className="chat-fab-badge">{unread > 99 ? '99+' : unread}</span>}
+          </button>
+        )}
       </div>
       {picking && <CharacterPicker value={character} onChange={changeCharacter} onClose={() => setPicking(false)} />}
       {error && <p className="room-error">{error}</p>}
@@ -375,23 +394,6 @@ export function Room() {
               ))}
             </div>
           )}
-          <button
-            type="button"
-            className={`chat-fab ${unread > 0 ? 'has-unread' : ''}`}
-            aria-label="채팅 열기"
-            onClick={() => {
-              setChatOpen(true)
-              setChatSeen(chat.length)
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden>
-              <path
-                fill="currentColor"
-                d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
-              />
-            </svg>
-            {unread > 0 && <span className="chat-fab-badge">{unread > 99 ? '99+' : unread}</span>}
-          </button>
           {chatOpen && (
             <div className="chat-sheet" role="dialog" aria-label="채팅">
               <div className="chat-sheet-head">
