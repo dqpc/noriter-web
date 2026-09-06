@@ -2067,7 +2067,7 @@ button.room-me {
 .yut-card.dealing {
   animation:
     yut-card-fly 0.55s cubic-bezier(0.25, 0.9, 0.3, 1) var(--dl) both,
-    yut-card-hindu 3.1s ease-in-out 1.35s both;
+    yut-card-hindu 3.1s ease-in-out 1.35s forwards;
 }
 @keyframes yut-card-fly {
   0% { transform: translate(var(--sx), var(--sy)) rotate(0deg) scale(0.92); opacity: 0; }
