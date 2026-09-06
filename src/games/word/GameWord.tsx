@@ -7,6 +7,7 @@ import { checkWord, fetchToday, fetchWordStats, submitGuess, submitResult, type 
 import { customLink, decodeCustom, encodeCustom, type CustomPuzzle } from './custom'
 import { KEYBOARD_ROWS, MAX_TRIES, WORD_LENGTH, decompose, keyToJamo } from './jamo'
 import { hardModeError, judge, keyStatuses, type Status } from './judge'
+import { fromServerGuesses } from './restore'
 import { buildKakaoCard, buildShareText } from './share'
 import {
   type Answer,
@@ -103,11 +104,36 @@ export function GameWord() {
     if (custom) return
     let cancelled = false
     fetchToday()
-      .then((t) => {
+      .then(async (t) => {
         if (cancelled) return
         setToday(t)
         const saved = loadProgress(t.number)
-        if (saved) {
+        // 계정은 서버 추측이 정본. 서버에 추측이 없는데 로컬이 끝나 있으면(추측 저장 전에 푼 날) 로컬을 믿는다
+        const server = t.guesses && (t.guesses.length > 0 || !saved?.finished) ? fromServerGuesses(t.guesses) : null
+        if (server) {
+          const sameAsSaved =
+            saved !== null && saved.rows.length === server.rows.length && saved.finished === server.finished
+          const nextHard = saved?.hard ?? loadSettings().hard
+          let resolved = sameAsSaved ? saved.answer : null
+          if (server.finished && !resolved) {
+            try {
+              const res = await submitResult(t.number, server.won ? server.rows.length : null, nextHard)
+              resolved = res.answer
+              if (res.stats) setStats(toView(res.stats))
+            } catch {
+              /* 정답 없이도 판은 보여준다 */
+            }
+            if (cancelled) return
+          }
+          setRows(server.rows)
+          setStatuses(server.statuses)
+          setHard(nextHard)
+          setFinished(server.finished)
+          setWon(server.won)
+          setAnswer(resolved)
+          saveProgress({ number: t.number, ...server, hard: nextHard, answer: resolved })
+          if (server.rows.length === 0 && !hasSeenHelp()) setModal('help')
+        } else if (saved) {
           setRows(saved.rows)
           setStatuses(saved.statuses)
           setHard(saved.hard)
@@ -167,8 +193,9 @@ export function GameWord() {
           resolved = res.answer
           if (res.stats) setStats(toView(res.stats))
           else setStats(toView(recordGuestResult(number, attempts)))
-        } catch {
+        } catch (e) {
           if (!me) setStats(toView(recordGuestResult(number, attempts)))
+          else showToast(e instanceof Error ? e.message : '결과를 저장하지 못했어요.', 2500)
         }
       }
       setAnswer(resolved)
