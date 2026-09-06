@@ -56,9 +56,11 @@ export function Play() {
           ←
         </Link>
         <span className="play-title">{game.name}</span>
-        <span className="play-best">
-          BEST <b>{best}</b>
-        </span>
+        {!game.solo && (
+          <span className="play-best">
+            BEST <b>{best}</b>
+          </span>
+        )}
         <FullscreenButton />
       </div>
       <Component host={host} />
