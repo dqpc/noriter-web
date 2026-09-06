@@ -5,6 +5,7 @@ import { Play } from './pages/Play'
 import { VisitCounter } from './components/VisitCounter'
 import { Room } from './pages/Room'
 import { AuthProvider } from './auth/AuthContext'
+import { RequireIdentity } from './auth/RequireIdentity'
 import { SocialDock } from './social/SocialDock'
 
 export default function App() {
@@ -14,8 +15,22 @@ export default function App() {
         <main className="app-main">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/games/:gameId" element={<GameEntry />} />
-            <Route path="/games/:gameId/play" element={<Play />} />
+            <Route
+              path="/games/:gameId"
+              element={
+                <RequireIdentity>
+                  <GameEntry />
+                </RequireIdentity>
+              }
+            />
+            <Route
+              path="/games/:gameId/play"
+              element={
+                <RequireIdentity>
+                  <Play />
+                </RequireIdentity>
+              }
+            />
             <Route path="/rooms/:roomId" element={<Room />} />
           </Routes>
         </main>
