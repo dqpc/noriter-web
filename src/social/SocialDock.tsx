@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { markRead } from '../lib/auth'
 import { fetchConversations, type Conversation } from '../lib/dm'
+import { EnvelopeIcon } from './EnvelopeIcon'
 import { NotificationPanel } from './NotificationPanel'
 import { PeoplePanel } from './PeoplePanel'
 import { PresenceDot } from './PresenceDot'
@@ -68,6 +69,9 @@ export function SocialDock() {
       {open === 'notify' && <NotificationPanel onClose={() => setOpen(null)} />}
       {incomingDm && open === null && (
         <div className="invite-toast dm-toast fade-in" role="status">
+          <span className="toast-icon" aria-hidden>
+            <EnvelopeIcon size={22} />
+          </span>
           <span className="invite-toast-text">
             <b>새 쪽지</b>
             <small>{incomingDm.body}</small>

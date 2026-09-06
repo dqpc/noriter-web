@@ -3010,3 +3010,52 @@ button.room-me {
   flex: 1;
   min-width: 0;
 }
+
+.icon-btn {
+  appearance: none;
+  border: 1px solid var(--surface-2);
+  background: var(--surface);
+  color: var(--muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+.icon-btn:hover {
+  color: var(--accent);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.toast-icon {
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+.dm-who {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 2px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.dm-who:hover {
+  background: var(--surface);
+}

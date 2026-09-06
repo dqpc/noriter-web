@@ -6,7 +6,15 @@ import { fetchMessages, markConversationRead, sendMessage, type Conversation, ty
 import { timeAgo } from '../lib/timeAgo'
 
 /** 사람들 패널 안의 1:1 쪽지 화면 */
-export function DmView({ conversation, onBack }: { conversation: Conversation; onBack: () => void }) {
+export function DmView({
+  conversation,
+  onBack,
+  onProfile,
+}: {
+  conversation: Conversation
+  onBack: () => void
+  onProfile: () => void
+}) {
   const { me, subscribeDm, refreshDm } = useAuth()
   const [messages, setMessages] = useState<DmMessage[] | null>(null)
   const [hasMore, setHasMore] = useState(false)
@@ -93,8 +101,13 @@ export function DmView({ conversation, onBack }: { conversation: Conversation; o
         <button type="button" className="panel-close" onClick={onBack} aria-label="뒤로">
           ←
         </button>
-        <CharacterAvatar id={conversation.otherCharacterId} size={30} />
-        <b>{conversation.otherNickname}</b>
+        <button type="button" className="dm-who" onClick={onProfile} title="프로필 보기 · 친구 추가">
+          <CharacterAvatar id={conversation.otherCharacterId} size={30} />
+          <b>{conversation.otherNickname}</b>
+          <i className="room-player-info" aria-hidden>
+            i
+          </i>
+        </button>
       </div>
       <div
         className="dm-list"

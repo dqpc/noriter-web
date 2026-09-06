@@ -16,6 +16,7 @@ import {
 import { fetchConversations, openConversation, type Conversation } from '../lib/dm'
 import { timeAgo } from '../lib/timeAgo'
 import { DmView } from './DmView'
+import { EnvelopeIcon } from './EnvelopeIcon'
 import { PresenceDot } from './PresenceDot'
 import { ProfileCard } from './ProfileCard'
 
@@ -80,8 +81,10 @@ export function PeoplePanel({
               loadChats()
               refreshDm()
             }}
+            onProfile={() => setProfile(chat.otherUserId)}
           />
         </aside>
+        {profile !== null && <ProfileCard userId={profile} onClose={() => setProfile(null)} onChanged={load} />}
       </div>
     )
   }
@@ -172,7 +175,9 @@ export function PeoplePanel({
               loadChats()
             }}
           >
-            쪽지{' '}
+            <span className="tab-icon">
+              <EnvelopeIcon size={16} /> 쪽지
+            </span>{' '}
             {conversations && conversations.some((c) => c.unread > 0) && (
               <small className="tab-unread">{conversations.reduce((s, c) => s + c.unread, 0)}</small>
             )}
@@ -238,11 +243,12 @@ export function PeoplePanel({
                   )}
                   <button
                     type="button"
-                    className="btn btn-ghost btn-small"
+                    className="icon-btn"
                     onClick={() => startChat(f.id)}
-                    aria-label="쪽지"
+                    aria-label={`${f.nickname} 님에게 쪽지`}
+                    title="쪽지 보내기"
                   >
-                    쪽지
+                    <EnvelopeIcon />
                   </button>
                 </li>
               )
