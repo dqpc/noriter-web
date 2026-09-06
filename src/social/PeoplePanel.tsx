@@ -192,8 +192,16 @@ export function PeoplePanel({
             )}
             {conversations?.map((c) => (
               <li key={c.id} className="people-row">
-                <button type="button" className="people-main" onClick={() => setChat(c)}>
+                <button
+                  type="button"
+                  className="avatar-btn"
+                  onClick={() => setProfile(c.otherUserId)}
+                  aria-label={`${c.otherNickname} 프로필`}
+                  title="프로필 보기 · 친구 추가"
+                >
                   <CharacterAvatar id={c.otherCharacterId} size={32} />
+                </button>
+                <button type="button" className="people-main" onClick={() => setChat(c)}>
                   <span className="people-text">
                     <b>{c.otherNickname}</b>
                     <small className="dm-preview">{c.lastMessage ? c.lastMessage.body : '대화를 시작해 보세요'}</small>

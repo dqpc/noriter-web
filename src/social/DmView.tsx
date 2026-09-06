@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CharacterAvatar } from '../characters'
 import { useAuth } from '../auth/useAuth'
-import { ApiError } from '../lib/auth'
+import { addFriend, ApiError, fetchProfile } from '../lib/auth'
 import { fetchMessages, markConversationRead, sendMessage, type Conversation, type DmMessage } from '../lib/dm'
 import { timeAgo } from '../lib/timeAgo'
 
@@ -21,6 +21,8 @@ export function DmView({
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notFriend, setNotFriend] = useState(false)
+  const [adding, setAdding] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const stickBottom = useRef(true)
   const convId = conversation.id
@@ -32,6 +34,9 @@ export function DmView({
 
   useEffect(() => {
     let cancelled = false
+    fetchProfile(conversation.otherUserId)
+      .then((p) => !cancelled && setNotFriend(!p.friend))
+      .catch(() => {})
     fetchMessages(convId)
       .then((page) => {
         if (cancelled) return
@@ -135,6 +140,30 @@ export function DmView({
           )
         })}
       </div>
+      {notFriend && (
+        <div className="dm-banner">
+          <span>
+            <b>{conversation.otherNickname}</b> 님은 아직 내 친구가 아니에요. 상대가 나를 먼저 추가해서 쪽지를 보낼 수
+            있었어요.
+          </span>
+          <button
+            type="button"
+            className="btn btn-small"
+            disabled={adding}
+            onClick={async () => {
+              setAdding(true)
+              try {
+                await addFriend(conversation.otherUserId)
+                setNotFriend(false)
+              } finally {
+                setAdding(false)
+              }
+            }}
+          >
+            친구 추가
+          </button>
+        </div>
+      )}
       {error && <p className="room-error">{error}</p>}
       <form className="dm-form" onSubmit={submit}>
         <input
