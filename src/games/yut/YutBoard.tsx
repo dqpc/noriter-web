@@ -162,19 +162,22 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
   const nodeClass = (node: number, base: string) =>
     `${base} ${hovering ? (hotDests.has(node) ? 'hot' : 'cold') : ''} ${armedMove && armedMove.dest === node ? 'armed' : ''}`
   const pieceClass = (key: PieceKey, base: string) => `${base} ${hovering ? (hotPieces.has(key) ? 'hot' : 'cold') : ''}`
+  const onlyChoice = active && v.legalMoves.length === 1
   const hint = !active
     ? null
     : branch
       ? '어느 쪽으로 갈까요?'
-      : armedMove
-        ? '같은 곳을 한 번 더 누르면 이동합니다'
-        : selDest !== null
-          ? '어느 말로 갈까요? 말을 누르면 바로 이동합니다'
-          : selPiece !== null
-            ? '도착지를 누르세요'
-            : candidates.length === 0
-              ? '움직일 수 있는 말이 없습니다'
-              : '말이나 도착지를 누르세요'
+      : onlyChoice
+        ? '갈 곳이 하나뿐입니다. 누르면 바로 이동합니다'
+        : armedMove
+          ? '같은 곳을 한 번 더 누르면 이동합니다'
+          : selDest !== null
+            ? '어느 말로 갈까요? 말을 누르면 바로 이동합니다'
+            : selPiece !== null
+              ? '도착지를 누르세요'
+              : candidates.length === 0
+                ? '움직일 수 있는 말이 없습니다'
+                : '말이나 도착지를 누르세요'
   const eventNote =
     v.lastEvent?.type === 'skipTurn'
       ? `${nameOf(String(v.lastEvent.player))} 님은 이번 차례를 쉽니다 (쉬어!)`
@@ -184,7 +187,7 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
 
   /** 첫 번째 누름은 경로만 보여주고, 같은 수를 한 번 더 누르면 보낸다 */
   const confirm = (m: YutMove) => {
-    if (armed === moveKey(m)) send(m)
+    if (onlyChoice || armed === moveKey(m)) send(m)
     else select(selPiece, selDest, null, moveKey(m))
   }
   const pickPiece = (key: PieceKey) => {
