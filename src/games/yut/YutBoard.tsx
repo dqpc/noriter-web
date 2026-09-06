@@ -41,6 +41,31 @@ function useNow(active: boolean): number {
   return now
 }
 
+const EFFECT_ICON: Record<string, string> = {
+  ONE_MORE: '🎲',
+  CHOOSE_THROW: '✋',
+  GREED: '➕',
+  SHORTCUT: '↗',
+  BACKDO_IMMUNE: '🚫',
+  SHIELD: '🛡️',
+  CURSED_BACKDO: '💀',
+  REST: '💤',
+  TARGET: '🎯',
+}
+const EFFECT_DESC: Record<string, string> = {
+  ONE_MORE: '던지기가 추가로 남아 있음',
+  CHOOSE_THROW: '다음 던지기 결과를 직접 고름',
+  GREED: '다음 던지기 칸수 +1 (빽도 제외)',
+  SHORTCUT: '다음 갈림길에서 정확히 서지 않아도 꺾을 수 있음',
+  BACKDO_IMMUNE: '다음 내 차례까지 빽도는 도로 취급',
+  SHIELD: '다음 내 차례까지 말이 잡히지 않음',
+  CURSED_BACKDO: '다음 던지기는 무조건 빽도',
+  REST: '다음 차례를 한 번 건너뜀',
+  TARGET: '다음 내 차례까지 이 말을 잡은 상대는 추가 던지기 2회',
+}
+const DEVIL_EFFECTS = new Set(['CURSED_BACKDO', 'REST', 'TARGET'])
+const effectTone = (id: string) => (id === 'SHIELD' ? 'shield' : DEVIL_EFFECTS.has(id) ? 'devil' : 'angel')
+
 export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnProps) {
   const v = useMemo(() => toYutView(view), [view])
   const stepKey = `${v.turn}:${v.phase}:${v.queue.map((r) => `${r.result}${r.steps}`).join(',')}`
@@ -82,11 +107,7 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
     motion.captures.length > 0 ||
     motion.blocks.length > 0
   const blockNodes = new Set(motion.blocks.map((b) => b.node))
-  const { show: cardShow, dismiss: dismissCard } = useCardShow(
-    v,
-    busy || animating,
-    me !== null && v.actor === me && !v.ended,
-  )
+  const cardShow = useCardShow(v, busy || animating)
   const cardOpen = cardShow !== null
   const [shown, setShown] = useState({ turn: v.turn, phase: v.phase, actor: v.actor })
   if (!busy && !cardOpen && (shown.turn !== v.turn || shown.phase !== v.phase || shown.actor !== v.actor)) {
@@ -218,7 +239,7 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
   }
 
   const remainMs = v.deadline ? Math.max(0, new Date(v.deadline).getTime() - now) : 0
-  const effectRows = v.players.filter((p) => p.effects.length > 0 && !p.resigned)
+  const myEffects = mePlayer && !mePlayer.resigned ? mePlayer.effects : []
 
   return (
     <div className={`yut ${v.ended ? '' : myTurnShown ? 'my-turn' : 'their-turn'}`}>
@@ -283,18 +304,22 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
           {' 대신 봇이 둡니다'}
         </div>
       )}
-      {effectRows.length > 0 && !v.ended && (
-        <div className="yut-effects">
-          {effectRows.map((p) => (
-            <span key={p.id} className={`yut-effects-row ${p.id === me ? 'mine' : ''}`}>
-              <span className="yut-effects-name">{p.id === me ? '내 효과' : nameOf(p.id)}</span>
-              {p.effects.map((e) => (
-                <span key={e.id} className={`yut-effect ${e.id.toLowerCase()}`}>
-                  {e.label}
+      {myEffects.length > 0 && !v.ended && (
+        <div className="yut-mine" role="status">
+          <span className="yut-mine-title">내 효과</span>
+          <ul className="yut-mine-list">
+            {myEffects.map((e) => (
+              <li key={e.id} className={`yut-mine-item ${effectTone(e.id)}`}>
+                <span className="yut-mine-icon" aria-hidden>
+                  {EFFECT_ICON[e.id] ?? '✦'}
                 </span>
-              ))}
-            </span>
-          ))}
+                <span className="yut-mine-text">
+                  <b>{e.label}</b>
+                  <small>{EFFECT_DESC[e.id] ?? ''}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <div
@@ -526,7 +551,6 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
             nameOf={nameOf}
             remainMs={remainMs}
             onPick={(index) => onAction({ type: 'card', index })}
-            onDismiss={dismissCard}
           />
         )}
       </div>
@@ -598,6 +622,15 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
               <span className="yut-player-pieces">
                 {p.pieces.map((pc) => (
                   <i key={pc.id} className={pc.finished ? 'done' : pc.path ? 'board' : 'wait'} />
+                ))}
+              </span>
+            )}
+            {!p.resigned && p.effects.length > 0 && (
+              <span className="yut-player-effects">
+                {p.effects.map((e) => (
+                  <span key={e.id} className={`yut-effect ${effectTone(e.id)}`} title={EFFECT_DESC[e.id] ?? e.label}>
+                    <span aria-hidden>{EFFECT_ICON[e.id] ?? '✦'}</span> {e.label}
+                  </span>
                 ))}
               </span>
             )}

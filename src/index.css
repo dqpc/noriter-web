@@ -1844,36 +1844,21 @@ button.room-me {
   transform-origin: center;
   animation: spin 6s linear infinite;
 }
-.yut-effects {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  justify-content: center;
-  font-size: 12px;
-}
-.yut-effects-row {
+.yut-effect {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-}
-.yut-effects-name {
-  color: var(--muted);
-}
-.yut-effects-row.mine .yut-effects-name {
-  color: var(--accent);
-  font-weight: 700;
-}
-.yut-effect {
+  gap: 3px;
   padding: 2px 8px;
   border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
   background: rgba(251, 191, 36, 0.14);
   border: 1px solid rgba(251, 191, 36, 0.4);
   color: #fde68a;
-  font-weight: 700;
+  cursor: help;
 }
-.yut-effect.cursed_backdo,
-.yut-effect.rest,
-.yut-effect.target {
+.yut-effect.devil {
   background: rgba(239, 68, 68, 0.14);
   border-color: rgba(239, 68, 68, 0.45);
   color: #fca5a5;
@@ -1882,6 +1867,82 @@ button.room-me {
   background: rgba(125, 211, 252, 0.14);
   border-color: rgba(125, 211, 252, 0.45);
   color: #bae6fd;
+}
+.yut-players li {
+  flex-wrap: wrap;
+}
+.yut-player-effects {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: 32px;
+}
+
+/* Yut: 내 효과 패널 */
+.yut-mine {
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(251, 191, 36, 0.03));
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  animation: fade-in 0.3s ease;
+}
+.yut-mine-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.yut-mine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.yut-mine-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.yut-mine-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 15px;
+  background: rgba(251, 191, 36, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.45);
+}
+.yut-mine-item.devil .yut-mine-icon {
+  background: rgba(239, 68, 68, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.5);
+}
+.yut-mine-item.shield .yut-mine-icon {
+  background: rgba(125, 211, 252, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.5);
+}
+.yut-mine-text {
+  display: grid;
+  line-height: 1.25;
+}
+.yut-mine-text b {
+  font-size: 13px;
+}
+.yut-mine-item.devil .yut-mine-text b {
+  color: #fca5a5;
+}
+.yut-mine-item.shield .yut-mine-text b {
+  color: #bae6fd;
+}
+.yut-mine-text small {
+  font-size: 11px;
+  color: var(--muted);
 }
 .yut-choose {
   display: grid;
@@ -2180,7 +2241,7 @@ button.room-me {
 .yut-card.picked {
   --cx: calc((2 - var(--i)) * 19cqw);
   z-index: 2;
-  animation: yut-card-reveal 1.2s ease-out both;
+  animation: yut-card-reveal 3s ease-out both;
 }
 .yut-card.picked .yut-card-back {
   animation: yut-card-flip-back 0.6s 0.2s ease-in-out both;
@@ -2198,19 +2259,8 @@ button.room-me {
 }
 @keyframes yut-card-reveal {
   0% { transform: translate(0, 0) scale(1); }
-  30%, 100% { transform: translate(var(--cx), -4cqh) scale(1.6); }
-}
-.yut-cards.stage-reveal {
-  cursor: pointer;
-}
-.yut-card-continue {
-  margin-top: 6px;
-  font-style: normal;
-  font-size: 12px;
-  color: var(--accent);
-  animation: fade-in 0.4s 1.4s both, yut-badge-pulse 1.4s 1.8s ease-in-out infinite;
-  padding: 2px 10px;
-  border-radius: 999px;
+  20%, 90% { transform: translate(var(--cx), -4cqh) scale(1.6); opacity: 1; }
+  100% { transform: translate(var(--cx), -4cqh) scale(1.6); opacity: 0; }
 }
 .yut-card.faded {
   animation: yut-card-fade 0.5s ease-out both;
