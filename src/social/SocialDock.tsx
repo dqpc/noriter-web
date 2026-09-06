@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { markRead } from '../lib/auth'
+import { fetchConversations, type Conversation } from '../lib/dm'
 import { NotificationPanel } from './NotificationPanel'
 import { PeoplePanel } from './PeoplePanel'
 import { PresenceDot } from './PresenceDot'
 
 /** 로그인했을 때 화면 구석에 떠 있는 사람·알림 버튼과 초대 토스트 */
 export function SocialDock() {
-  const { me, notifications, incomingInvite, dismissInvite } = useAuth()
+  const { me, notifications, incomingInvite, dismissInvite, dmUnread, incomingDm, dismissDm } = useAuth()
   const [open, setOpen] = useState<'people' | 'notify' | null>(null)
+  const [startChat, setStartChat] = useState<Conversation | null>(null)
   const navigate = useNavigate()
   if (!me) return null
 
@@ -25,7 +27,15 @@ export function SocialDock() {
   return (
     <>
       <div className="dock" role="toolbar" aria-label="사람·알림">
-        <button type="button" className="dock-btn" onClick={() => setOpen('people')} aria-label="사람들">
+        <button
+          type="button"
+          className={`dock-btn ${dmUnread > 0 ? 'has-unread' : ''}`}
+          onClick={() => {
+            setStartChat(null)
+            setOpen('people')
+          }}
+          aria-label={`사람들${dmUnread > 0 ? ` · 안 읽은 쪽지 ${dmUnread}개` : ''}`}
+        >
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
             <path
               fill="currentColor"
@@ -35,6 +45,7 @@ export function SocialDock() {
           <span className="dock-status">
             <PresenceDot state={myState} size={9} />
           </span>
+          {dmUnread > 0 && <span className="dock-badge">{dmUnread > 99 ? '99+' : dmUnread}</span>}
         </button>
         <button
           type="button"
@@ -53,8 +64,32 @@ export function SocialDock() {
           )}
         </button>
       </div>
-      {open === 'people' && <PeoplePanel onClose={() => setOpen(null)} />}
+      {open === 'people' && <PeoplePanel onClose={() => setOpen(null)} initialConversation={startChat} />}
       {open === 'notify' && <NotificationPanel onClose={() => setOpen(null)} />}
+      {incomingDm && open === null && (
+        <div className="invite-toast dm-toast fade-in" role="status">
+          <span className="invite-toast-text">
+            <b>새 쪽지</b>
+            <small>{incomingDm.body}</small>
+          </span>
+          <button
+            type="button"
+            className="btn btn-small"
+            onClick={async () => {
+              const id = incomingDm.conversationId
+              dismissDm()
+              const list = await fetchConversations().catch(() => [] as Conversation[])
+              setStartChat(list.find((c) => c.id === id) ?? null)
+              setOpen('people')
+            }}
+          >
+            열기
+          </button>
+          <button type="button" className="btn btn-ghost btn-small" onClick={dismissDm}>
+            나중에
+          </button>
+        </div>
+      )}
       {incomingInvite && open === null && (
         <div className="invite-toast fade-in" role="status">
           <span className="invite-toast-text">

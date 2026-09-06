@@ -17,10 +17,12 @@ export function ProfileCard({
   userId,
   onClose,
   onChanged,
+  onMessage,
 }: {
   userId: number
   onClose: () => void
   onChanged?: () => void
+  onMessage?: (userId: number) => void
 }) {
   const { me } = useAuth()
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined)
@@ -104,6 +106,11 @@ export function ProfileCard({
               <p className="room-hint">아직 같이 한 판 기록이 없어요.</p>
             )}
             <div className="profile-actions">
+              {me && me.id !== profile.id && onMessage && profile.friend && (
+                <button type="button" className="btn" onClick={() => onMessage(profile.id)}>
+                  쪽지
+                </button>
+              )}
               {me && me.id !== profile.id && (
                 <button
                   type="button"
