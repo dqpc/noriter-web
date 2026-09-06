@@ -6,10 +6,12 @@ import { useAuth } from '../auth/useAuth'
 import {
   describeActivity,
   fetchFriends,
+  lookupNickname,
   PRESENCE_LABEL,
   type Friend,
   type Presence,
   type PresenceState,
+  type Profile,
 } from '../lib/auth'
 import { PresenceDot } from './PresenceDot'
 import { ProfileCard } from './ProfileCard'
@@ -30,6 +32,8 @@ export function PeoplePanel({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [choosing, setChoosing] = useState(false)
   const [profile, setProfile] = useState<number | null>(null)
+  const [found, setFound] = useState<Profile | null | undefined>(undefined)
+  const [searching, setSearching] = useState(false)
 
   const load = () =>
     fetchFriends()
@@ -60,12 +64,58 @@ export function PeoplePanel({ onClose }: { onClose: () => void }) {
             ×
           </button>
         </div>
-        <input
-          className="input panel-search"
-          placeholder="친구 찾기"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <form
+          className="panel-find"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const name = query.trim()
+            if (!name) return
+            setSearching(true)
+            try {
+              setFound(await lookupNickname(name))
+            } catch {
+              setFound(null)
+            } finally {
+              setSearching(false)
+            }
+          }}
+        >
+          <input
+            className="input panel-search"
+            placeholder="닉네임 (친구 목록 검색 · Enter 로 사용자 찾기)"
+            value={query}
+            autoCapitalize="none"
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setFound(undefined)
+            }}
+          />
+          <button type="submit" className="btn btn-small" disabled={!query.trim() || searching}>
+            찾기
+          </button>
+        </form>
+        {found !== undefined && (
+          <div className="people-found">
+            {found === null ? (
+              <span className="room-hint">
+                '{query.trim()}' 닉네임의 사용자가 없어요. 정확한 닉네임을 입력해 주세요.
+              </span>
+            ) : found.id === me?.id ? (
+              <span className="room-hint">나 자신이에요.</span>
+            ) : (
+              <button type="button" className="people-main" onClick={() => setProfile(found.id)}>
+                <CharacterAvatar id={found.characterId} size={32} />
+                <span className="people-text">
+                  <b>{found.nickname}</b>
+                  <small>
+                    <PresenceDot state={found.presence.state} size={8} /> {describeActivity(found.presence)}
+                    {found.friend ? ' · 이미 친구' : ' · 눌러서 프로필 보기·친구 추가'}
+                  </small>
+                </span>
+              </button>
+            )}
+          </div>
+        )}
         <div className="panel-tabs">
           <button type="button" className={tab === 'online' ? 'active' : ''} onClick={() => setTab('online')}>
             온라인 {onlineCount > 0 && <small>{onlineCount}</small>}
@@ -139,7 +189,16 @@ export function PeoplePanel({ onClose }: { onClose: () => void }) {
           </div>
         )}
       </aside>
-      {profile !== null && <ProfileCard userId={profile} onClose={() => setProfile(null)} onChanged={load} />}
+      {profile !== null && (
+        <ProfileCard
+          userId={profile}
+          onClose={() => setProfile(null)}
+          onChanged={() => {
+            load()
+            if (found) setFound({ ...found, friend: !found.friend })
+          }}
+        />
+      )}
     </div>
   )
 }
