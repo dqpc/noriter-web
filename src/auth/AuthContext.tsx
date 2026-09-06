@@ -4,28 +4,25 @@ import {
   fetchMe,
   fetchNotifications,
   getToken,
-  heartbeat,
   setToken,
   updateMe,
   type Me,
   type Notification,
   type NotificationList,
 } from '../lib/auth'
+import { MeSocket } from '../lib/meSocket'
 import { getPreference, setPreference } from '../lib/storage'
 import { AuthContext, type ActivityInfo, type AuthState } from './context'
-
-const HEARTBEAT_MS = 25_000
-const NOTIFY_POLL_MS = 15_000
 
 const EMPTY: NotificationList = { unread: 0, items: [] }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null | undefined>(() => (getToken() ? undefined : null))
-  const [guestName, setGuestName] = useState<string | null>(() => getPreference('room', 'nickname'))
+  const [guestName, setGuestName] = useState<string | null>(() => getPreference('me', 'guest'))
   const [notifications, setNotifications] = useState<NotificationList>(EMPTY)
   const [incomingInvite, setIncomingInvite] = useState<Notification | null>(null)
   const activityRef = useRef<ActivityInfo>({ activity: 'MENU' })
-  const seenInvites = useRef<Set<number> | null>(null)
+  const socketRef = useRef<MeSocket | null>(null)
 
   useEffect(() => {
     if (!getToken()) return
@@ -51,46 +48,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const list = await fetchNotifications()
       setNotifications(list)
-      const invites = list.items.filter((n) => n.kind === 'INVITE' && !n.read)
-      if (seenInvites.current === null) {
-        seenInvites.current = new Set(invites.map((n) => n.id))
-      } else {
-        const fresh = invites.find((n) => !seenInvites.current!.has(n.id))
-        invites.forEach((n) => seenInvites.current!.add(n.id))
-        if (fresh) setIncomingInvite(fresh)
-      }
       return list
     } catch {
       return null
     }
   }, [])
 
-  const beat = useCallback(() => {
-    if (!getToken()) return
+  const sendActivity = useCallback(() => {
     const a = activityRef.current
-    heartbeat(a.activity, a.gameId, a.roomId).catch(() => {})
+    socketRef.current?.send({ type: 'activity', activity: a.activity, gameId: a.gameId, roomId: a.roomId })
   }, [])
 
+  // 개인 채널: 붙어 있는 동안 온라인, 새 알림은 즉시 도착. 끊기면 1.5초마다 다시 붙는다
+  const meId = me?.id
   useEffect(() => {
-    if (!me) return
-    beat()
-    const first = window.setTimeout(refreshNotifications, 0)
-    const h = window.setInterval(beat, HEARTBEAT_MS)
-    const n = window.setInterval(refreshNotifications, NOTIFY_POLL_MS)
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        beat()
-        refreshNotifications()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible)
+    const token = meId ? getToken() : null
+    if (!token) return
+    const socket = new MeSocket(token, {
+      onOpen: () => {
+        sendActivity()
+        void refreshNotifications()
+      },
+      onMessage: (m) => {
+        if (m.type === 'hello') setNotifications((n) => ({ ...n, unread: m.unread }))
+        else if (m.type === 'notification') {
+          setNotifications((n) => ({ unread: m.unread, items: [m.item, ...n.items.filter((i) => i.id !== m.item.id)] }))
+          if (m.item.kind === 'INVITE') setIncomingInvite(m.item)
+        }
+      },
+      onRejected: () => {
+        setToken(null)
+        setMe(null)
+      },
+    })
+    socketRef.current = socket
     return () => {
-      window.clearTimeout(first)
-      window.clearInterval(h)
-      window.clearInterval(n)
-      document.removeEventListener('visibilitychange', onVisible)
+      socket.close()
+      socketRef.current = null
     }
-  }, [me, beat, refreshNotifications])
+  }, [meId, sendActivity, refreshNotifications])
 
   const value = useMemo<AuthState>(
     () => ({
@@ -100,7 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       displayName: me?.nickname ?? guestName ?? '',
       signIn: (token, m) => {
         setToken(token)
-        seenInvites.current = null
         setMe(m)
         if (m.characterId) setMyCharacter(m.characterId)
         else updateMe({ characterId: getMyCharacter() }).catch(() => {})
@@ -110,11 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setMe(null)
         setNotifications(EMPTY)
         setIncomingInvite(null)
-        seenInvites.current = null
       },
       playAsGuest: (name) => {
-        setPreference('room', 'nickname', name)
-        setGuestName(name)
+        setPreference('me', 'guest', name)
+        if (name) setPreference('room', 'nickname', name)
+        setGuestName(name || null)
       },
       setPresence: async (presence) => {
         const m = await updateMe({ presence })
@@ -129,14 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       setActivity: (info) => {
         activityRef.current = info ?? { activity: 'MENU' }
-        beat()
+        sendActivity()
       },
       notifications,
       refreshNotifications,
       incomingInvite,
       dismissInvite: () => setIncomingInvite(null),
     }),
-    [me, guestName, notifications, incomingInvite, beat, refreshNotifications],
+    [me, guestName, notifications, incomingInvite, sendActivity, refreshNotifications],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -126,12 +126,6 @@ export const fetchMe = () => call<Me>('/api/users/me')
 export const updateMe = (patch: { presence?: Presence; characterId?: string }) =>
   call<Me>('/api/users/me', { method: 'PATCH', body: JSON.stringify(patch) })
 
-export const heartbeat = (activity: Activity, gameId?: string, roomId?: string) =>
-  call<void>('/api/users/me/presence', {
-    method: 'PUT',
-    body: JSON.stringify({ activity, gameId: gameId ?? null, roomId: roomId ?? null }),
-  })
-
 export const fetchFriends = () => call<Friend[]>('/api/users/me/friends')
 export const addFriend = (userId: number) => call<void>(`/api/users/me/friends/${userId}`, { method: 'PUT' })
 export const removeFriend = (userId: number) => call<void>(`/api/users/me/friends/${userId}`, { method: 'DELETE' })
