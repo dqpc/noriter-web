@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { YutCardInfo, YutView } from './board'
 
 const INTRO_MS = 1100
@@ -13,7 +13,6 @@ export interface CardShow {
   stage: 'intro' | 'deal' | 'pick' | 'reveal'
   picked: number | null
   card: YutCardInfo | null
-  since: number | null
   /** 다음 진행이 기다리는 중이라 잠시 후 자동으로 닫힘 */
   hurry: boolean
 }
@@ -40,7 +39,6 @@ export function useCardShow(
       stage: 'reveal',
       picked: typeof ev.index === 'number' ? ev.index : 0,
       card: ev.card as YutCardInfo,
-      since: null,
       hurry: false,
     })
   } else if (pileKey && pileKey !== seenPile && !busy && (show === null || show.stage !== 'reveal')) {
@@ -52,7 +50,6 @@ export function useCardShow(
       stage: 'intro',
       picked: null,
       card: null,
-      since: null,
       hurry: false,
     })
   } else if (!pileKey && show && show.stage !== 'reveal' && !revealKey) {
@@ -65,11 +62,10 @@ export function useCardShow(
 
   const stage = show?.stage
   const key = show?.pileKey
-  const since = show?.since
+  const revealAt = useRef(0)
   useEffect(() => {
-    if (stage === 'reveal' && since === null)
-      setShow((s) => (s && s.stage === 'reveal' ? { ...s, since: Date.now() } : s))
-  }, [stage, since])
+    if (stage === 'reveal') revealAt.current = Date.now()
+  }, [stage, seenReveal])
   useEffect(() => {
     if (stage === 'intro') {
       const t = window.setTimeout(
@@ -85,12 +81,12 @@ export function useCardShow(
       )
       return () => window.clearTimeout(t)
     }
-    if (stage === 'reveal' && since !== null && since !== undefined) {
-      const wait = hurry ? Math.max(0, since + REVEAL_HURRY_MS - Date.now()) : REVEAL_FALLBACK_MS
+    if (stage === 'reveal') {
+      const wait = hurry ? Math.max(0, revealAt.current + REVEAL_HURRY_MS - Date.now()) : REVEAL_FALLBACK_MS
       const t = window.setTimeout(() => setShow((s) => (s && s.stage === 'reveal' ? null : s)), wait)
       return () => window.clearTimeout(t)
     }
-  }, [stage, key, hurry, since])
+  }, [stage, key, hurry, seenReveal])
   const dismiss = () => setShow((s) => (s && s.stage === 'reveal' ? null : s))
   return { show, dismiss }
 }
