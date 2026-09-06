@@ -154,6 +154,20 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
     <div className="stairs">
       <div className="stairs-board-wrap">
         <canvas ref={canvasRef} className="stairs-board" aria-label="계단" />
+        {steps === 0 && !ended && (
+          <div className="stairs-tip" aria-live="polite">
+            <p className="stairs-tip-title">조작</p>
+            <p>
+              <kbd>Shift</kbd> 방향 전환 · <kbd>Space</kbd> 오르기
+              <br />
+              <small>모바일은 아래 왼쪽·오른쪽 버튼</small>
+            </p>
+            <p className="stairs-tip-dash">
+              <b>대시</b> 방향을 바꾸고 <em>바로</em> 오르면 4칸을 한 번에 뛰어요
+            </p>
+            <p className="stairs-tip-sub">번개를 밟으면 에너지가 가득 찹니다</p>
+          </div>
+        )}
         {ended && (
           <div className="g2048-overlay">
             <p>{ended.fell ? '떨어졌다!' : '지쳤다…'}</p>
@@ -193,8 +207,8 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
         </button>
       </div>
       <p className="g2048-help">
-        보는 방향에 계단이 있으면 오르기, 반대쪽이면 방향 전환. 키보드는 Shift 와 스페이스. 번개를 밟으면 에너지가 가득
-        찹니다.
+        보는 방향에 계단이 있으면 오르기, 반대쪽이면 방향 전환. 키보드는 Shift 와 스페이스. 방향 전환 직후 바로 오르면
+        대시(4칸). 번개를 밟으면 에너지가 가득 찹니다.
       </p>
     </div>
   )

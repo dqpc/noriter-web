@@ -3128,3 +3128,62 @@ button.room-me {
   padding: 8px 14px;
   font-size: 14px;
 }
+
+/* 계단 오르기 시작 전 조작 팁 */
+.stairs-tip {
+  position: absolute;
+  left: 50%;
+  top: 14%;
+  transform: translateX(-50%);
+  width: min(88%, 320px);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(28, 25, 23, 0.86);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  pointer-events: none;
+  animation: fade-in 0.4s ease;
+}
+.stairs-tip p {
+  margin: 0 0 6px;
+}
+.stairs-tip p:last-child {
+  margin-bottom: 0;
+}
+.stairs-tip-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.stairs-tip kbd {
+  font: inherit;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid #57534e;
+}
+.stairs-tip small {
+  color: var(--muted);
+}
+.stairs-tip-dash {
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(251, 191, 36, 0.14);
+}
+.stairs-tip-dash b {
+  color: var(--accent);
+  margin-right: 4px;
+}
+.stairs-tip-dash em {
+  font-style: normal;
+  color: #fde68a;
+  font-weight: 700;
+}
+.stairs-tip-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
