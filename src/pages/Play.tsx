@@ -5,6 +5,7 @@ import { findGame } from '../games/registry'
 import { getBestScore, setBestScore } from '../lib/storage'
 import { useActivity } from '../auth/useAuth'
 import { recordPlay } from '../lib/auth'
+import { FullscreenButton } from '../components/FullscreenButton'
 
 export function Play() {
   const { gameId } = useParams()
@@ -58,6 +59,7 @@ export function Play() {
         <span className="play-best">
           BEST <b>{best}</b>
         </span>
+        <FullscreenButton />
       </div>
       <Component host={host} />
       <aside className="ad-slot" aria-hidden="true">
