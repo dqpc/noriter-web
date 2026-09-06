@@ -22,7 +22,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 ## 기능
 
 - **계정**: 홈 첫 화면에서 닉네임 하나로 시작한다. 가입된 닉네임이면 비밀번호를 물어 로그인, 처음이면 가입(비밀번호 + 이메일 선택) 또는 게스트. 토큰(JWT)은 localStorage 에 두고 API 와 방 입장(`join.token`)에 같이 보낸다. 계정이 있으면 고른 캐릭터가 서버에 저장되어 어디서 접속해도 유지되고, 방에는 닉네임을 묻지 않고 바로 들어간다. 게스트는 이 브라우저에서만 이름이 남고 기록·친구·알림이 없다.
-- **사람들·알림**: 로그인하면 왼쪽 아래에 사람(친구) 버튼과 알림 버튼이 뜬다. 친구 패널은 온라인/전체 탭, 검색, 친구가 지금 뭘 하는지(메뉴·어떤 게임 대기실·하는 중)와 대기실에 있으면 바로 들어가기. 머리글의 상태 버튼으로 온라인·자리 비움·바쁨·숨김을 고른다. 알림 패널은 환영·게임 결과·최고 기록 갱신·초대를 보여 주고, 15초마다 새 알림을 확인해 배지를 띄운다.
+- **사람들·알림**: 로그인하면 왼쪽 아래에 사람(친구) 버튼과 알림 버튼이 뜬다. 친구 패널은 온라인/전체 탭, 검색, 친구가 지금 뭘 하는지(메뉴·어떤 게임 대기실·하는 중)와 대기실에 있으면 바로 들어가기. 머리글의 상태 버튼으로 온라인·자리 비움·바쁨·숨김을 고른다. 알림 패널은 환영·게임 결과·최고 기록 갱신·초대를 보여 주고, 새 알림은 개인 WebSocket 채널로 바로 도착해 배지와 초대 토스트가 뜬다.
 - **프로필·친구 추가**: 대기실 참가자 이름(ⓘ)이나 친구 목록을 누르면 프로필 카드(캐릭터·가입일·접속 상태·게임별 판 수와 최고 기록 또는 1등 횟수). 친구 추가는 인스타 팔로우처럼 일방향이라 상대에게 알리지 않고 수락도 없다.
 - **초대**: 대기실의 "친구 초대" 에서 접속 중(온라인·자리 비움)인 친구만 초대 버튼이 살아 있다. 초대받은 쪽은 알림·상단 토스트의 "수락" 으로 그 방에 바로 들어간다(계정이라 자동 입장).
 - **혼자 하기 / 같이 하기**: 게임을 고르면 선택 화면. 같이 하기는 방을 만들고 초대 링크(`/rooms/{id}`)로 부른다.
@@ -40,7 +40,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 
 **게임 규칙은 순수 TypeScript 함수로 분리했다.** `logic.ts` 는 DOM 을 모르는 함수(보드 이동, 계단 판정, 에너지 계산)만 있어서 Vitest 로 단위 테스트한다. 난수는 `mulberry32` 로 seed 를 주입받아, 같은 seed 면 같은 판이 나온다. 이 덕분에 방 대전에서 전원이 같은 타일 순서·같은 계단을 받는다.
 
-**서버와는 REST 와 WebSocket 두 통로로 통신한다.** 방 생성·조회·계정·친구·알림은 `fetch` 로(`lib/auth.ts` 가 Bearer 토큰을 붙인다), 입장·설정·시작·점수·채팅·상태 중계는 브라우저 내장 `WebSocket` 으로 주고받는다. `lib/roomClient.ts` 가 이 둘을 감싸고, 30초 하트비트와 끊김 시 자동 재접속을 담당한다. 로그인 상태는 `auth/AuthContext` 가 갖고, 25초마다 접속 하트비트(지금 어떤 화면인지)와 15초마다 알림 폴링을 한다. 솔로 진행도·최고 점수와 게스트 닉네임은 `localStorage` 에 둔다.
+**서버와는 REST 와 WebSocket 두 통로로 통신한다.** 방 생성·조회·계정·친구·알림은 `fetch` 로(`lib/auth.ts` 가 Bearer 토큰을 붙인다), 입장·설정·시작·점수·채팅·상태 중계는 브라우저 내장 `WebSocket` 으로 주고받는다. `lib/roomClient.ts` 가 이 둘을 감싸고, 30초 하트비트와 끊김 시 자동 재접속을 담당한다. 로그인 상태는 `auth/AuthContext` 가 갖고, `lib/meSocket.ts` 로 개인 채널(`/ws/me`)을 하나 열어 둔다. 이 연결이 살아 있는 동안 서버가 나를 온라인으로 보고, 화면이 바뀌면 activity 를 보내며, 새 알림은 이 채널로 즉시 받는다. 끊기면 1.5초마다 다시 붙는다. 솔로 진행도·최고 점수와 게스트 닉네임은 `localStorage` 에 둔다.
 
 **빌드와 배포는 Vite 와 Cloudflare Workers 다.** Vite 가 개발 서버(핫 리로드, 같은 와이파이의 폰 접속)와 프로덕션 번들을 맡고, 브랜치에 따라 `VITE_APP_ENV` / `VITE_API_URL` 을 주입해 dev 와 prod 를 가른다. 결과물 `dist/` 는 Wrangler 로 Cloudflare Workers 정적 에셋에 올리고(`wrangler.jsonc`), SPA 라우팅은 Workers 의 폴백 설정이 처리한다. GitHub Actions 가 `develop` 은 `noriter-web-dev`, `main` 은 `noriter-web` 워커로 자동 배포한다.
 
@@ -67,7 +67,7 @@ src/
   auth/             AuthContext(로그인 상태·하트비트·알림 폴링·캐릭터 동기화), useAuth/useActivity, Gate(닉네임 → 로그인/가입/게스트)
   social/           SocialDock(사람·알림 버튼, 초대 토스트), PeoplePanel(친구·상태 선택), NotificationPanel, ProfileCard, InviteDialog
   pages/            Home, GameEntry(혼자/같이), Play(솔로), Room(대기실·게임·관전·결과)
-  lib/              api.ts(주소), auth.ts(계정·친구·알림 API), roomClient.ts(REST+WebSocket, 하트비트·재접속), storage.ts, random.ts, time.ts
+  lib/              api.ts(주소), auth.ts(계정·친구·알림 API), meSocket.ts(개인 채널), roomClient.ts(REST+WebSocket, 하트비트·재접속), storage.ts, random.ts, time.ts
 ```
 
 새 게임은 `src/games/<id>/` 에 로직·렌더·미리보기·아이콘을 만들고 registry 에 한 줄 추가하면 된다. 서버에는 GameSpec 한 줄.
