@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { decodeCustom, encodeCustom } from './custom'
 import type { Status } from './judge'
-import { SHARE_URL, buildShareText } from './share'
+import { SHARE_URL, buildKakaoCard, buildShareText } from './share'
 
 const rows: Status[][] = [
   ['absent', 'present', 'absent', 'absent', 'correct', 'absent'],
@@ -42,6 +42,23 @@ describe('share', () => {
         creator: '민수',
       }),
     ).toBe('글딱지 2/6\n민수의 놀이\n⬜️🟨⬜️⬜️🟩⬜️\n🟩🟩🟩🟩🟩🟩')
+  })
+
+  it('카톡 카드: 제목은 결과 문구, 설명은 점수 줄 + 격자', () => {
+    const base = { hard: false, streak: null, rows, highContrast: false, showLink: true }
+    expect(buildKakaoCard({ ...base, number: 12, attempts: 2, streak: 5 })).toEqual({
+      title: '오늘의 단어 성공! 🎉',
+      description: '글딱지 12 2/6 🔥5\n⬜️🟨⬜️⬜️🟩⬜️\n🟩🟩🟩🟩🟩🟩',
+    })
+    expect(buildKakaoCard({ ...base, number: 1, attempts: 1, rows: [rows[1]] }).title).toBe(
+      '오늘의 단어 한 번에 성공! 🎯',
+    )
+    expect(buildKakaoCard({ ...base, number: 1, attempts: 6 }).title).toBe('오늘의 단어 아슬아슬 성공! 😅')
+    expect(buildKakaoCard({ ...base, number: 1, attempts: null }).title).toBe('오늘의 단어 실패… 내일 다시! 😢')
+    expect(buildKakaoCard({ ...base, number: null, attempts: 3, creator: '민수' })).toEqual({
+      title: '민수의 문제 성공! 🎉',
+      description: '글딱지 3/6\n⬜️🟨⬜️⬜️🟩⬜️\n🟩🟩🟩🟩🟩🟩',
+    })
   })
 
   it('문제 코드는 정답 자모와 제작자를 왕복한다', () => {

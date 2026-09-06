@@ -7,7 +7,7 @@ import { checkWord, fetchToday, fetchWordStats, submitGuess, submitResult, type 
 import { customLink, decodeCustom, encodeCustom, type CustomPuzzle } from './custom'
 import { KEYBOARD_ROWS, MAX_TRIES, WORD_LENGTH, decompose, keyToJamo } from './jamo'
 import { hardModeError, judge, keyStatuses, type Status } from './judge'
-import { buildShareText } from './share'
+import { buildKakaoCard, buildShareText } from './share'
 import {
   type Answer,
   type Progress,
@@ -335,11 +335,10 @@ export function GameWord() {
   }
 
   const shareKakao = async () => {
-    const [head, ...grid] = buildShareText({ ...shareInput(), showLink: false }).split('\n')
+    const card = buildKakaoCard(shareInput())
     try {
       await shareToKakao({
-        title: head,
-        description: grid.join('\n'),
+        ...card,
         // 문제 만들기 링크는 ?code= 가 있어야 같은 문제가 열린다
         path: custom ? `${location.pathname}${location.search}` : '/games/word',
         buttonTitle: '도전하기',
