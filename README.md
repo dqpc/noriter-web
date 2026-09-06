@@ -46,7 +46,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 
 **서버와는 REST 와 WebSocket 두 통로로 통신한다.** 방 생성·조회·계정·친구·알림은 `fetch` 로(`lib/auth.ts` 가 Bearer 토큰을 붙인다), 입장·설정·시작·점수·채팅·상태 중계는 브라우저 내장 `WebSocket` 으로 주고받는다. `lib/roomClient.ts` 가 이 둘을 감싸고, 30초 하트비트와 끊김 시 자동 재접속을 담당한다. 로그인 상태는 `auth/AuthContext` 가 갖고, `lib/meSocket.ts` 로 개인 채널(`/ws/me`)을 하나 열어 둔다. 이 연결이 살아 있는 동안 서버가 나를 온라인으로 보고, 화면이 바뀌면 activity 를 보내며, 새 알림은 이 채널로 즉시 받는다. 끊기면 1.5초마다 다시 붙는다. 솔로 진행도·최고 점수와 게스트 닉네임은 `localStorage` 에 둔다.
 
-**빌드와 배포는 Vite 와 Cloudflare Workers 다.** Vite 가 개발 서버(핫 리로드, 같은 와이파이의 폰 접속)와 프로덕션 번들을 맡고, 브랜치에 따라 `VITE_APP_ENV` / `VITE_API_URL` 을 주입해 dev 와 prod 를 가른다. 결과물 `dist/` 는 Wrangler 로 Cloudflare Workers 정적 에셋에 올리고(`wrangler.jsonc`), SPA 라우팅은 Workers 의 폴백 설정이 처리한다. GitHub Actions 가 `develop` 은 `noriter-web-dev`, `main` 은 `noriter-web` 워커로 자동 배포한다.
+**빌드와 배포는 Vite 와 Cloudflare Workers 다.** Vite 가 개발 서버(핫 리로드, 같은 와이파이의 폰 접속)와 프로덕션 번들을 맡고, 브랜치에 따라 `VITE_APP_ENV` / `VITE_API_URL` / `VITE_SITE_URL` 을 주입해 dev 와 prod 를 가른다. `VITE_SITE_URL` 은 `index.html` 의 OG 메타태그(카톡·슬랙 링크 미리보기, `public/og.png`)에 절대 주소로 들어간다. 결과물 `dist/` 는 Wrangler 로 Cloudflare Workers 정적 에셋에 올리고(`wrangler.jsonc`), SPA 라우팅은 Workers 의 폴백 설정이 처리한다. GitHub Actions 가 `develop` 은 `noriter-web-dev`, `main` 은 `noriter-web` 워커로 자동 배포한다.
 
 **코드 품질 도구**는 oxlint(린트), Prettier(포맷), Vitest(테스트)이고, PR 마다 GitHub Actions 에서 린트·테스트·빌드를 돌린다. 캐릭터는 인라인 SVG 문자열로 두어 React 에서는 그대로, Canvas 에서는 data URI 이미지로 같은 그림을 쓴다.
 
