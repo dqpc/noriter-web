@@ -410,7 +410,9 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
                   onMouseLeave={() => setHover(null)}
                 >
                   {shielded && <circle r="21" className="yut-shield" />}
-                  {choosingPiece && pieceChoices.has(g.ids[0]) && <circle r="24" className="yut-candidate-ring" />}
+                  {choosingPiece && mine && pieceChoices.has(g.ids[0]) && (
+                    <circle r="24" className="yut-candidate-ring" />
+                  )}
                   {g.ids.map((id, i) => (
                     <image
                       key={id}
