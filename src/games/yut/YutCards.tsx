@@ -52,12 +52,26 @@ export function YutCards({
       {(show.stage === 'intro' || show.stage === 'deal') && (
         <>
           <div className="yut-deck angel" aria-label="천사 덱">
-            <AngelIcon />
-            <i className="yut-deck-count">4장</i>
+            <div className="yut-deck-stack">
+              <i className="yut-deck-layer" />
+              <i className="yut-deck-layer" />
+              <i className="yut-deck-layer" />
+              <div className="yut-deck-layer top">
+                <AngelIcon />
+                <span className="yut-deck-count">4장</span>
+              </div>
+            </div>
           </div>
           <div className="yut-deck devil" aria-label="악마 덱">
-            <DevilIcon />
-            <i className="yut-deck-count">1장</i>
+            <div className="yut-deck-stack">
+              <i className="yut-deck-layer" />
+              <i className="yut-deck-layer" />
+              <i className="yut-deck-layer" />
+              <div className="yut-deck-layer top">
+                <DevilIcon />
+                <span className="yut-deck-count">1장</span>
+              </div>
+            </div>
           </div>
         </>
       )}
