@@ -4,6 +4,7 @@ import type { GameHost } from '../games/types'
 import { findGame } from '../games/registry'
 import { getBestScore, setBestScore } from '../lib/storage'
 import { useActivity } from '../auth/useAuth'
+import { recordPlay } from '../lib/auth'
 
 export function Play() {
   const { gameId } = useParams()
@@ -19,8 +20,8 @@ export function Play() {
         setBestScore(id, score)
         setBest((b) => Math.max(b, score))
       },
-      onGameOver: () => {
-        // TODO: 로그인/리더보드 붙이면 여기서 서버에 제출 (score, result.won, result.elapsedMs)
+      onGameOver: (score) => {
+        recordPlay(id, score).catch(() => {})
       },
     }
   }, [game?.id])

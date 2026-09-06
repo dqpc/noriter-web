@@ -136,6 +136,8 @@ export const markAllRead = () =>
   call<void>('/api/users/me/notifications', { method: 'PATCH', body: JSON.stringify({ read: true }) })
 export const markRead = (id: number) =>
   call<void>(`/api/users/me/notifications/${id}`, { method: 'PATCH', body: JSON.stringify({ read: true }) })
+export const recordPlay = (gameId: string, score: number) =>
+  call<void>(`/api/games/${gameId}/plays`, { method: 'POST', body: JSON.stringify({ score }) })
 export const inviteToRoom = (roomId: string, userId: number) =>
   call<void>(`/api/rooms/${roomId}/invitations`, { method: 'POST', body: JSON.stringify({ userId }) })
 
