@@ -2894,3 +2894,22 @@ button.room-me {
 .room-handover {
   margin-left: auto;
 }
+
+.panel-find {
+  display: flex;
+  gap: 6px;
+}
+.panel-find .panel-search {
+  flex: 1;
+  min-width: 0;
+}
+.people-found {
+  border: 1px dashed rgba(245, 158, 11, 0.5);
+  border-radius: 10px;
+  padding: 4px;
+  font-size: 13px;
+}
+.people-found .room-hint {
+  display: block;
+  padding: 6px 8px;
+}
