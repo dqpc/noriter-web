@@ -3,11 +3,13 @@ import { Link, useParams } from 'react-router-dom'
 import type { GameHost } from '../games/types'
 import { findGame } from '../games/registry'
 import { getBestScore, setBestScore } from '../lib/storage'
+import { useActivity } from '../auth/useAuth'
 
 export function Play() {
   const { gameId } = useParams()
   const game = findGame(gameId)
   const [best, setBest] = useState(() => (game ? getBestScore(game.id) : 0))
+  useActivity('PLAYING', game?.id)
 
   // host 는 게임 컴포넌트가 useEffect 의존성으로 쓰므로 참조가 안정적이어야 한다.
   const host = useMemo<GameHost>(() => {

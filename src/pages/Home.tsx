@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CharacterAvatar, CharacterPicker, findCharacter, getMyCharacter, setMyCharacter } from '../characters'
+import { CharacterAvatar, CharacterPicker, findCharacter, getMyCharacter } from '../characters'
+import { useActivity, useAuth } from '../auth/useAuth'
+import { Gate } from '../auth/Gate'
 import { GAMES } from '../games/registry'
 import { fetchRoom, type RoomSnapshot } from '../lib/roomClient'
 import { forgetRoom, getBestScore, getPlayerToken, getRememberedRooms } from '../lib/storage'
 
 export function Home() {
-  const [me, setMe] = useState(getMyCharacter)
+  const auth = useAuth()
+  const [picked, setPicked] = useState(getMyCharacter)
+  const me = auth.me?.characterId ?? picked
+  useActivity('MENU')
   const [picking, setPicking] = useState(false)
   const [resumable, setResumable] = useState<Record<string, RoomSnapshot>>({})
   useEffect(() => {
@@ -39,22 +44,46 @@ export function Home() {
           <h1 className="page-title">놀이터</h1>
           <p className="page-sub">에서 가볍게 한 판</p>
         </div>
-        <button type="button" className="me-button" onClick={() => setPicking(true)} aria-label="캐릭터 선택">
-          <CharacterAvatar id={me} size={56} />
-          <span>{findCharacter(me).name}</span>
-        </button>
+        {auth.identified && (
+          <div className="home-me">
+            <button type="button" className="me-button" onClick={() => setPicking(true)} aria-label="캐릭터 선택">
+              <CharacterAvatar id={me} size={56} />
+              <span>{findCharacter(me).name}</span>
+            </button>
+            <span className="home-who">
+              <b>{auth.displayName}</b>
+              {auth.me ? (
+                <button type="button" className="link-btn" onClick={auth.signOut}>
+                  로그아웃
+                </button>
+              ) : (
+                <>
+                  <small>게스트</small>
+                  <button type="button" className="link-btn" onClick={() => auth.playAsGuest('')}>
+                    로그인·가입
+                  </button>
+                </>
+              )}
+            </span>
+          </div>
+        )}
       </div>
+      {auth.me === undefined ? (
+        <p className="room-hint">로그인 확인 중…</p>
+      ) : (
+        !auth.identified && <Gate onPick={() => setPicking(true)} />
+      )}
       {picking && (
         <CharacterPicker
           value={me}
           onChange={(id) => {
-            setMyCharacter(id)
-            setMe(id)
+            auth.changeCharacter(id)
+            setPicked(id)
           }}
           onClose={() => setPicking(false)}
         />
       )}
-      <ul className="game-list">
+      <ul className={`game-list ${auth.identified ? '' : 'dimmed'}`}>
         {GAMES.map((g) => (
           <li key={g.id}>
             <Link to={`/games/${g.id}`} className="game-card">
