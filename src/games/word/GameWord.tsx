@@ -627,8 +627,10 @@ function SettingRow({ name, desc, on, onToggle }: { name: string; desc: string; 
 }
 
 function CreateModal({ onClose, onToast }: { onClose: () => void; onToast: (m: string) => void }) {
+  const { displayName } = useAuth()
   const [text, setText] = useState('')
-  const [creator, setCreator] = useState('')
+  // 게이트를 지났으면 닉네임이 있으니 그걸 기본값으로, 고치고 싶으면 고친다
+  const [creator, setCreator] = useState(displayName)
   const [link, setLink] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
   const jamo = decompose(text)
