@@ -188,6 +188,11 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
     `${base} ${hovering ? (hotDests.has(node) ? 'hot' : 'cold') : ''} ${armedMove && armedMove.dest === node ? 'armed' : ''}`
   const pieceClass = (key: PieceKey, base: string) => `${base} ${hovering ? (hotPieces.has(key) ? 'hot' : 'cold') : ''}`
   const onlyChoice = active && v.legalMoves.length === 1
+  /** 도착지를 먼저 골랐고 그곳으로 갈 수 있는 말이 둘 이상일 때, 말별 수 */
+  const pieceChoices = new Map<PieceKey, YutMove[]>()
+  if (selDest !== null && !branch)
+    for (const m of candidates) pieceChoices.set(keyOf(m), [...(pieceChoices.get(keyOf(m)) ?? []), m])
+  const choosingPiece = pieceChoices.size > 1
   const hint = !active
     ? null
     : branch
@@ -197,7 +202,7 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
         : armedMove
           ? '같은 곳을 한 번 더 누르면 이동합니다'
           : selDest !== null
-            ? '어느 말로 갈까요? 말을 누르면 바로 이동합니다'
+            ? '어느 말로 갈까요? 빛나는 말을 누르거나 아래 버튼을 고르세요'
             : selPiece !== null
               ? '도착지를 누르세요'
               : candidates.length === 0
@@ -405,6 +410,7 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
                   onMouseLeave={() => setHover(null)}
                 >
                   {shielded && <circle r="21" className="yut-shield" />}
+                  {choosingPiece && pieceChoices.has(g.ids[0]) && <circle r="24" className="yut-candidate-ring" />}
                   {g.ids.map((id, i) => (
                     <image
                       key={id}
@@ -469,6 +475,7 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
               onMouseEnter={() => setHover({ piece: 'new' })}
               onMouseLeave={() => setHover(null)}
             >
+              {choosingPiece && pieceChoices.has('new') && <circle r="24" className="yut-candidate-ring" />}
               <image
                 href={`data:image/svg+xml;utf8,${encodeURIComponent(characterSvg(findCharacter(characterOf(me ?? '')), 'R'))}`}
                 x="-16"
@@ -596,6 +603,24 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
           </div>
         )}
         {hint && !animating && <p className="room-hint yut-hint">{hint}</p>}
+        {choosingPiece && !animating && (
+          <div className="yut-choose-buttons">
+            {[...pieceChoices.entries()].map(([key, ms]) => (
+              <button
+                key={String(key)}
+                type="button"
+                className="btn yut-piece-btn"
+                onClick={() => (ms.length === 1 ? send(ms[0]) : pickPiece(key))}
+              >
+                {key === 'new'
+                  ? '새 말'
+                  : `${destName(v.names, myPieces.find((pc) => pc.id === key)?.node ?? 0)} 의 말`}{' '}
+                · {resultLabel(ms)}
+                {ms.some((m) => m.captures > 0) ? ' (잡기!)' : ''}
+              </button>
+            ))}
+          </div>
+        )}
         {eventNote && !animating && !hint && <p className="room-hint yut-hint">{eventNote}</p>}
         {branch && (
           <div className="yut-branch">

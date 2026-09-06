@@ -3112,3 +3112,19 @@ button.room-me {
 .modal-title {
   text-wrap: balance;
 }
+
+/* 도착지를 먼저 골랐을 때 갈 수 있는 말 표시 */
+.yut-candidate-ring {
+  fill: rgba(251, 191, 36, 0.12);
+  stroke: #fbbf24;
+  stroke-width: 3;
+  animation: yut-candidate-pulse 0.9s ease-in-out infinite;
+}
+@keyframes yut-candidate-pulse {
+  0%, 100% { r: 22; opacity: 1; }
+  50% { r: 27; opacity: 0.55; }
+}
+.yut-piece-btn {
+  padding: 8px 14px;
+  font-size: 14px;
+}
