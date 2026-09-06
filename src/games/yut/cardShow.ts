@@ -3,7 +3,7 @@ import type { YutCardInfo, YutView } from './board'
 
 const INTRO_MS = 1100
 const DEAL_MS = 4300
-const REVEAL_MS = 2400
+const REVEAL_FALLBACK_MS = 20000
 
 export interface CardShow {
   pileKey: string
@@ -15,7 +15,7 @@ export interface CardShow {
 }
 
 /** 서버 판 상태에서 카드 연출 단계를 만든다. 더미 만들기 → 고르기 → 공개 순서로, 공개는 판이 다음 단계로 넘어가도 끝까지 보여준다 */
-export function useCardShow(v: YutView, busy: boolean): CardShow | null {
+export function useCardShow(v: YutView, busy: boolean): { show: CardShow | null; dismiss: () => void } {
   const [show, setShow] = useState<CardShow | null>(null)
   const [seenPile, setSeenPile] = useState('')
   const [seenReveal, setSeenReveal] = useState('')
@@ -58,9 +58,10 @@ export function useCardShow(v: YutView, busy: boolean): CardShow | null {
       return () => window.clearTimeout(t)
     }
     if (stage === 'reveal') {
-      const t = window.setTimeout(() => setShow((s) => (s && s.stage === 'reveal' ? null : s)), REVEAL_MS)
+      const t = window.setTimeout(() => setShow((s) => (s && s.stage === 'reveal' ? null : s)), REVEAL_FALLBACK_MS)
       return () => window.clearTimeout(t)
     }
   }, [stage, key])
-  return show
+  const dismiss = () => setShow((s) => (s && s.stage === 'reveal' ? null : s))
+  return { show, dismiss }
 }
