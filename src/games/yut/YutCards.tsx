@@ -72,11 +72,19 @@ export function YutCards({
             show.stage === 'reveal' ? (picked ? 'picked' : 'faded') : '',
           ].join(' ')
           const slotX = 50 + (i - 2) * 19
+          const chops = [
+            [0, 1],
+            [2, 3],
+            [1, 4],
+          ]
           const style = {
             '--i': i,
             '--sx': `${(fromDevil ? 87.5 : 12.5) - slotX}cqw`,
             '--cx': `${50 - slotX}cqw`,
             '--dl': `${i * DEAL_STAGGER_MS}ms`,
+            '--c1': chops[0].includes(i) ? 1 : 0,
+            '--c2': chops[1].includes(i) ? 1 : 0,
+            '--c3': chops[2].includes(i) ? 1 : 0,
           } as CSSProperties
           return (
             <button

@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import type { YutCardInfo, YutView } from './board'
 
 const INTRO_MS = 1100
-const DEAL_MS = 3400
-const DEAL_STAGGER_MS = 160
+const DEAL_MS = 4300
 const REVEAL_MS = 2400
-const PILE = 5
 
 export interface CardShow {
   pileKey: string
@@ -55,7 +53,7 @@ export function useCardShow(v: YutView, busy: boolean): CardShow | null {
     if (stage === 'deal') {
       const t = window.setTimeout(
         () => setShow((s) => (s && s.stage === 'deal' ? { ...s, stage: 'pick' } : s)),
-        DEAL_MS + DEAL_STAGGER_MS * PILE,
+        DEAL_MS,
       )
       return () => window.clearTimeout(t)
     }

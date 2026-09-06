@@ -1961,19 +1961,33 @@ button.room-me {
   transition: transform 0.15s ease-out;
 }
 .yut-card.dealing {
-  animation: yut-card-deal 3.4s cubic-bezier(0.25, 0.9, 0.3, 1) both;
-  animation-delay: var(--dl);
+  animation:
+    yut-card-fly 0.55s cubic-bezier(0.25, 0.9, 0.3, 1) var(--dl) both,
+    yut-card-hindu 3.1s ease-in-out 1.35s both;
 }
-@keyframes yut-card-deal {
+@keyframes yut-card-fly {
   0% { transform: translate(var(--sx), var(--sy)) rotate(0deg) scale(0.85); opacity: 0; }
-  6% { opacity: 1; }
-  30% { transform: translate(var(--cx), 0) rotate(0deg) scale(1); }
-  42% { transform: translate(calc(var(--cx) - 4cqw), -2cqh) rotate(-8deg) scale(1.02); }
-  52% { transform: translate(calc(var(--cx) + 4cqw), 2cqh) rotate(7deg) scale(1.02); }
-  62% { transform: translate(calc(var(--cx) - 2cqw), -1cqh) rotate(-4deg) scale(1); }
-  72% { transform: translate(var(--cx), 0) rotate(0deg) scale(1); }
-  88% { transform: translate(0, 0) rotate(0deg) scale(1); }
-  100% { transform: none; opacity: 1; }
+  10% { opacity: 1; }
+  100% { transform: translate(var(--cx), calc(var(--i) * -0.4cqh)) rotate(0deg) scale(1); opacity: 1; }
+}
+/* 힌두 셔플: 위쪽 묶음을 들어 올렸다가 착, 세 번 */
+@keyframes yut-card-hindu {
+  0% { transform: translate(var(--cx), calc(var(--i) * -0.4cqh)); }
+  6% { transform: translate(var(--cx), calc(var(--i) * -0.4cqh)); }
+  11% { transform: translate(calc(var(--cx) - var(--c1) * 3cqw), calc(var(--c1) * -24cqh)) rotate(calc(var(--c1) * -7deg)); }
+  14% { transform: translate(calc(var(--cx) - var(--c1) * 3cqw), calc(var(--c1) * -24cqh)) rotate(calc(var(--c1) * -7deg)); }
+  17% { transform: translate(var(--cx), calc(var(--c1) * 0.6cqh)) scale(calc(1 + var(--c1) * 0.03)); }
+  21% { transform: translate(var(--cx), 0); }
+  26% { transform: translate(calc(var(--cx) - var(--c2) * 3cqw), calc(var(--c2) * -24cqh)) rotate(calc(var(--c2) * -7deg)); }
+  29% { transform: translate(calc(var(--cx) - var(--c2) * 3cqw), calc(var(--c2) * -24cqh)) rotate(calc(var(--c2) * -7deg)); }
+  32% { transform: translate(var(--cx), calc(var(--c2) * 0.6cqh)) scale(calc(1 + var(--c2) * 0.03)); }
+  36% { transform: translate(var(--cx), 0); }
+  41% { transform: translate(calc(var(--cx) - var(--c3) * 3cqw), calc(var(--c3) * -24cqh)) rotate(calc(var(--c3) * -7deg)); }
+  44% { transform: translate(calc(var(--cx) - var(--c3) * 3cqw), calc(var(--c3) * -24cqh)) rotate(calc(var(--c3) * -7deg)); }
+  47% { transform: translate(var(--cx), calc(var(--c3) * 0.6cqh)) scale(calc(1 + var(--c3) * 0.03)); }
+  52% { transform: translate(var(--cx), 0); }
+  70% { transform: translate(var(--cx), 0); }
+  100% { transform: none; }
 }
 .yut-card.hidden-card {
   opacity: 0;
