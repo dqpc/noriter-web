@@ -33,7 +33,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 - **턴제 게임**: 윷놀이처럼 판이 하나인 게임은 서버가 상태를 갖고 `gameState` 를 내려준다. 화면은 `GameDefinition.Turn` 이 그리고 `action` 만 보낸다. 캐릭터가 겹치면 시작할 수 없다.
 - **채팅**: 대기실·결과 화면(PC 는 진행 중에도) 채팅, 입장·퇴장 알림. 저장하지 않는다. 시각은 보는 사람의 로컬 시간.
 - **캐릭터**: 십이지신 12마리 중 선택(홈·입장 화면·대기실). 처음엔 랜덤. 모든 게임이 같은 캐릭터를 쓴다.
-- **글딱지**: 꼬들(kordle.kr) 규칙 그대로. 오늘 진행·설정은 localStorage, 통계는 계정이면 서버(`/api/games/word/stats`) 게스트면 localStorage. `solo: true` 게임은 방·최고 점수 UI 를 숨긴다.
+- **글딱지**: 꼬들(kordle.kr) 규칙 그대로. 설정은 localStorage. 계정이면 추측을 서버가 저장하고 결과(시도 횟수)도 서버가 계산하며, 새로고침하면 서버 추측으로 판을 복원한다(`restore.ts`). 게스트는 진행·통계 모두 localStorage. `solo: true` 게임은 방·최고 점수 UI 를 숨긴다.
 - **화면 크기**: 게임판은 창·모니터 크기를 따라 커진다(PC 720px 이상에서 혼자 하기 폭 확대, 1040px 이상에서 방 화면도 확대). 게임 화면 머리글의 ⛶ 버튼은 브라우저 전체 화면(문서 전체를 요청, `body.fullscreen` 으로 하단·도크·광고 자리를 숨김). Fullscreen API 가 없는 iPhone Safari 에서는 버튼이 안 보인다.
 - 연결이 끊기면 자동 재접속. 진행도·최고 점수·설정은 localStorage.
 - **방문자 수**: 하단 오른쪽에 오늘·전체. 브라우저마다 하루 한 번 서버에 기록(서울 시간 기준).
@@ -67,7 +67,7 @@ npm run build      # dist/
 src/
   games/            게임 모듈. registry.ts 에 등록하면 목록·방·관전에 자동 반영
     <id>/logic.ts   순수 로직(테스트), Game*.tsx Canvas 렌더, Preview*.tsx 미니 뷰, Icon*.tsx
-    word/           글딱지: jamo(분해·자판), judge(판정·하드 모드), share(공유 텍스트), custom(문제 코드), api, storage, GameWord.tsx
+    word/           글딱지: jamo(분해·자판), judge(판정·하드 모드), share(공유 텍스트), custom(문제 코드), restore(서버 추측 복원), api, storage, GameWord.tsx
     types.ts        GameDefinition / GameHost(onScore·onGameOver·onState) / PreviewProps / TurnProps(턴제)
   characters/       공통 캐릭터(SVG 12종, 피커, 캔버스 이미지)
   auth/             AuthContext(로그인 상태·하트비트·알림 폴링·캐릭터 동기화), useAuth/useActivity, Gate(닉네임 → 로그인/가입/게스트)
