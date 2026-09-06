@@ -51,12 +51,12 @@ export function YutCards({
       )}
       {(show.stage === 'intro' || show.stage === 'deal') && (
         <>
-          <div className="yut-deck angel">
-            <span>천사 덱</span>
+          <div className="yut-deck angel" aria-label="천사 덱">
+            <AngelIcon />
             <i className="yut-deck-count">4장</i>
           </div>
-          <div className="yut-deck devil">
-            <span>악마 덱</span>
+          <div className="yut-deck devil" aria-label="악마 덱">
+            <DevilIcon />
             <i className="yut-deck-count">1장</i>
           </div>
         </>
@@ -94,7 +94,7 @@ export function YutCards({
               {picked && show.card && (
                 <span className={`yut-card-face ${show.card.kind.toLowerCase()}`}>
                   <span className="yut-card-kind">{show.card.kind === 'ANGEL' ? '천사의 카드' : '악마의 카드'}</span>
-                  <span className="yut-card-icon">{show.card.kind === 'ANGEL' ? '😇' : '😈'}</span>
+                  <span className="yut-card-icon">{show.card.kind === 'ANGEL' ? <AngelIcon /> : <DevilIcon />}</span>
                   <span className="yut-card-label">{show.card.label}</span>
                 </span>
               )}
@@ -109,5 +109,35 @@ export function YutCards({
         </div>
       )}
     </div>
+  )
+}
+
+function AngelIcon() {
+  return (
+    <svg className="yut-deck-icon" viewBox="0 0 64 64" aria-hidden>
+      <ellipse cx="32" cy="11" rx="12" ry="4" fill="none" stroke="#fbbf24" strokeWidth="3" />
+      <path d="M10 34c-8-6-8-14-2-16 4-1 7 3 8 7z" fill="#fffbeb" stroke="#f59e0b" strokeWidth="2" />
+      <path d="M54 34c8-6 8-14 2-16-4-1-7 3-8 7z" fill="#fffbeb" stroke="#f59e0b" strokeWidth="2" />
+      <circle cx="32" cy="34" r="16" fill="#fff7ed" stroke="#f59e0b" strokeWidth="2.5" />
+      <path d="M25 33q2-3 4 0M35 33q2-3 4 0" fill="none" stroke="#78350f" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M26 40q6 5 12 0" fill="none" stroke="#78350f" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="23" cy="38" r="2.5" fill="#fca5a5" opacity="0.8" />
+      <circle cx="41" cy="38" r="2.5" fill="#fca5a5" opacity="0.8" />
+    </svg>
+  )
+}
+
+function DevilIcon() {
+  return (
+    <svg className="yut-deck-icon" viewBox="0 0 64 64" aria-hidden>
+      <path d="M18 24l-4-14 12 8zM46 24l4-14-12 8z" fill="#7f1d1d" stroke="#450a0a" strokeWidth="2" />
+      <circle cx="32" cy="34" r="16" fill="#dc2626" stroke="#450a0a" strokeWidth="2.5" />
+      <path d="M23 29l8 4M41 29l-8 4" fill="none" stroke="#1c0a0a" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="26" cy="35" r="2" fill="#fde68a" />
+      <circle cx="38" cy="35" r="2" fill="#fde68a" />
+      <path d="M25 42q7-4 14 0" fill="none" stroke="#1c0a0a" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M46 44q10 2 6 12" fill="none" stroke="#7f1d1d" strokeWidth="3" strokeLinecap="round" />
+      <path d="M52 56l-4 1 3 3z" fill="#7f1d1d" />
+    </svg>
   )
 }

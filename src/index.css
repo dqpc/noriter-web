@@ -1902,6 +1902,14 @@ button.room-me {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
   animation: yut-deck-in 0.4s ease-out both;
 }
+.yut-deck-icon {
+  width: 62%;
+  height: auto;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+.yut-card-icon .yut-deck-icon {
+  width: clamp(28px, 7cqw, 56px);
+}
 .yut-deck-count {
   font-style: normal;
   font-size: clamp(10px, 2cqw, 13px);
