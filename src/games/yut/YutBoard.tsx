@@ -74,8 +74,9 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
   const rolling = anim.rolling ?? v.sticks
   const now = useNow(!v.ended) + clockOffset
 
-  const motion = useMotion(v)
+  const { motion, settling } = useMotion(v)
   const busy =
+    settling ||
     Object.keys(motion.overrides).length > 0 ||
     motion.linger.length > 0 ||
     motion.captures.length > 0 ||
@@ -168,7 +169,7 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
       : armedMove
         ? '같은 곳을 한 번 더 누르면 이동합니다'
         : selDest !== null
-          ? '어느 말로 갈까요? 말을 누르세요'
+          ? '어느 말로 갈까요? 말을 누르면 바로 이동합니다'
           : selPiece !== null
             ? '도착지를 누르세요'
             : candidates.length === 0
@@ -189,8 +190,10 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
   const pickPiece = (key: PieceKey) => {
     const ms = candidates.filter((m) => keyOf(m) === key)
     if (ms.length === 0) return
-    if (ms.length === 1) confirm(ms[0])
-    else if (selPiece === key) select(null, null)
+    if (ms.length === 1) {
+      if (selDest !== null) send(ms[0])
+      else confirm(ms[0])
+    } else if (selPiece === key) select(null, null)
     else select(key, null)
   }
   const send = (m: YutMove) => {
@@ -732,7 +735,7 @@ function planMotion(prev: YutView, v: YutView): MotionPlan | null {
   return { initial: { overrides, linger, captures: [], blocks: [] }, timeline }
 }
 
-function useMotion(v: YutView): Motion {
+function useMotion(v: YutView): { motion: Motion; settling: boolean } {
   const [state, setState] = useState<{ v: YutView | null; plan: MotionPlan | null; motion: Motion }>({
     v: null,
     plan: null,
@@ -750,7 +753,7 @@ function useMotion(v: YutView): Motion {
     )
     return () => timers.forEach((t) => window.clearTimeout(t))
   }, [plan])
-  return state.motion
+  return { motion: state.motion, settling: state.v !== v }
 }
 
 function playerOffset(players: { id: string }[], id: string): [number, number] {

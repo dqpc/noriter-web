@@ -33,13 +33,23 @@ export function YutCards({
             : mine
               ? show.stage === 'pick'
                 ? `카드 한 장을 고르세요 · ${Math.ceil(remainMs / 1000)}s`
-                : '천사 4장 · 악마 1장'
+                : show.stage === 'deal'
+                  ? '천사 4장 + 악마 1장을 섞는 중'
+                  : '천사 덱과 악마 덱'
               : show.stage === 'pick'
                 ? `${nameOf(show.player)} 님이 고르는 중 · ${Math.ceil(remainMs / 1000)}s`
-                : `${nameOf(show.player)} 님의 더미를 만드는 중`}
+                : show.stage === 'deal'
+                  ? `${nameOf(show.player)} 님의 더미를 섞는 중`
+                  : `${nameOf(show.player)} 님의 카드 뽑기`}
         </span>
       </div>
-      {show.stage === 'deal' && (
+      {show.stage === 'intro' && (
+        <div className="yut-cards-intro" aria-hidden>
+          <span className="yut-cards-intro-text">카드 뽑기!</span>
+          <span className="yut-cards-intro-sub">{title}</span>
+        </div>
+      )}
+      {(show.stage === 'intro' || show.stage === 'deal') && (
         <>
           <div className="yut-deck angel">
             <span>천사 덱</span>
@@ -57,7 +67,7 @@ export function YutCards({
           const picked = show.picked === i
           const cls = [
             'yut-card',
-            show.stage === 'deal' ? 'dealing' : '',
+            show.stage === 'deal' ? 'dealing' : show.stage === 'intro' ? 'hidden-card' : '',
             canPick ? 'pickable' : '',
             show.stage === 'reveal' ? (picked ? 'picked' : 'faded') : '',
           ].join(' ')
@@ -65,6 +75,7 @@ export function YutCards({
           const style = {
             '--i': i,
             '--sx': `${(fromDevil ? 87.5 : 12.5) - slotX}cqw`,
+            '--cx': `${50 - slotX}cqw`,
             '--dl': `${i * DEAL_STAGGER_MS}ms`,
           } as CSSProperties
           return (
