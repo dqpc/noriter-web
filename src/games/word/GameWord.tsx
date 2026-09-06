@@ -542,7 +542,9 @@ export function GameWord() {
           <p>
             <b>"글딱지"는 자정에 갱신됩니다.</b>
           </p>
-          <p className="word-credit">단어와 뜻풀이는 국립국어원 표준국어대사전을 바탕으로 했습니다.</p>
+          <p className="word-credit">
+            단어는 국립국어원 표준국어대사전을 바탕으로 했고, 뜻풀이는 놀이터가 짧게 다듬었습니다.
+          </p>
         </WordModal>
       )}
 

@@ -5,7 +5,7 @@ import { IconWord } from './IconWord'
 export const word: GameDefinition = {
   id: 'word',
   name: '글딱지',
-  description: '하루 한 낱말, 여섯 번의 기회.',
+  description: '하루에 한 단어',
   Icon: IconWord,
   Component: GameWord,
   solo: true,
