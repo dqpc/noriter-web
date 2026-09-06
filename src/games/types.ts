@@ -44,6 +44,8 @@ export interface GameDefinition {
   Component?: ComponentType<{ host: GameHost; options?: GameOptions }>
   Preview?: ComponentType<PreviewProps>
   turnBased?: boolean
+  /** 혼자 하기 전용. 방·최고 점수 UI 를 숨긴다 */
+  solo?: boolean
   Turn?: ComponentType<TurnProps>
   /** 판이 오기 전(카운트다운)에 보여줄 빈 판 */
   idleView?: (playerIds: string[]) => Record<string, unknown>

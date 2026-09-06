@@ -90,7 +90,7 @@ export function Home() {
               <span className="game-card-text">
                 <span className="game-card-name">{g.name}</span>
                 <span className="game-card-desc">{g.description}</span>
-                {!g.turnBased && <span className="game-card-best">최고 {getBestScore(g.id)}</span>}
+                {!g.turnBased && !g.solo && <span className="game-card-best">최고 {getBestScore(g.id)}</span>}
               </span>
               <span className="game-card-icon">
                 <g.Icon size={60} />

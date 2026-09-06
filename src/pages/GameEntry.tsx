@@ -65,38 +65,50 @@ export function GameEntry() {
       <div className="entry-hero">
         <game.Icon size={96} />
         <p className="entry-desc">{game.description}</p>
-        {!game.turnBased && <p className="game-card-best">최고 {getBestScore(game.id)}</p>}
+        {!game.turnBased && !game.solo && <p className="game-card-best">최고 {getBestScore(game.id)}</p>}
       </div>
-      <div className="entry-actions">
-        {game.Component && (
+      {game.solo ? (
+        <div className="entry-actions">
           <Link to={`/games/${game.id}/play`} className="btn entry-btn">
-            혼자 하기
+            시작
           </Link>
-        )}
-        <button type="button" className="btn btn-ghost entry-btn" onClick={together} disabled={creating}>
-          같이 하기
-        </button>
-      </div>
-      <p className="room-hint">같이 하기는 방을 만들고 초대 링크로 친구를 부릅니다.</p>
-      <form className="entry-find" onSubmit={findRoom}>
-        <span className="entry-find-label">방 찾기</span>
-        <input
-          className="input mono"
-          value={code}
-          maxLength={4}
-          placeholder="방 코드 4자"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          onChange={(e) => {
-            setCode(e.target.value.replace(/[^a-z0-9]/gi, ''))
-            setFindError(null)
-          }}
-        />
-        <button type="submit" className="btn btn-ghost" disabled={code.trim().length !== 8 || finding}>
-          입장
-        </button>
-      </form>
+        </div>
+      ) : (
+        <>
+          <div className="entry-actions">
+            {game.Component && (
+              <Link to={`/games/${game.id}/play`} className="btn entry-btn">
+                혼자 하기
+              </Link>
+            )}
+            <button type="button" className="btn btn-ghost entry-btn" onClick={together} disabled={creating}>
+              같이 하기
+            </button>
+          </div>
+          <p className="room-hint">같이 하기는 방을 만들고 초대 링크로 친구를 부릅니다.</p>
+        </>
+      )}
+      {!game.solo && (
+        <form className="entry-find" onSubmit={findRoom}>
+          <span className="entry-find-label">방 찾기</span>
+          <input
+            className="input mono"
+            value={code}
+            maxLength={4}
+            placeholder="방 코드 4자"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/[^a-z0-9]/gi, ''))
+              setFindError(null)
+            }}
+          />
+          <button type="submit" className="btn btn-ghost" disabled={code.trim().length !== 8 || finding}>
+            입장
+          </button>
+        </form>
+      )}
       {findError && <p className="room-error">{findError}</p>}
     </section>
   )
