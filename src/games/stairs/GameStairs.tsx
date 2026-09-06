@@ -5,8 +5,12 @@ import { ClimbIcon, TurnIcon } from './icons'
 
 import { getMyCharacter } from '../../characters'
 import { drawWith } from './draw'
+import { drawEffect, effectFor, type Effect } from './effects'
 
-function draw(canvas: HTMLCanvasElement, state: StairsState, options?: GameOptions) {
+const reduceMotion = () =>
+  typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+function draw(canvas: HTMLCanvasElement, state: StairsState, options?: GameOptions, effect: Effect | null = null) {
   drawWith(
     canvas,
     state.steps,
@@ -18,6 +22,7 @@ function draw(canvas: HTMLCanvasElement, state: StairsState, options?: GameOptio
     displaySteps(state, performance.now()),
     typeof options?.character === 'string' ? options.character : getMyCharacter(),
   )
+  drawEffect(canvas, effect, performance.now(), reduceMotion())
 }
 
 function readSeed(options?: GameOptions): number {
@@ -32,6 +37,7 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   const stateRef = useRef<StairsState>(initial)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
+  const effectRef = useRef<Effect | null>(null)
   const [steps, setSteps] = useState(0)
   const [ended, setEnded] = useState<{ fell: boolean } | null>(null)
 
@@ -40,8 +46,9 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
       const s = tick(stateRef.current, performance.now())
       const wasEnded = stateRef.current.ended
       stateRef.current = s
+      if (s.ended) effectRef.current = null
       const canvas = canvasRef.current
-      if (canvas) draw(canvas, s, options)
+      if (canvas) draw(canvas, s, options, effectRef.current)
       if (s.ended && !wasEnded) setEnded({ fell: s.fell })
       if (!s.ended) rafRef.current = requestAnimationFrame(frame)
     },
@@ -52,8 +59,10 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
     (action: Action) => {
       const before = stateRef.current
       if (before.ended || frozen) return
-      const after = press(before, action, performance.now())
+      const now = performance.now()
+      const after = press(before, action, now)
       stateRef.current = after
+      effectRef.current = effectFor(before, after, now) ?? effectRef.current
       if (after.steps !== before.steps) setSteps(after.steps)
       host.onState?.({
         steps: after.steps,
@@ -77,6 +86,7 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   const restart = useCallback(() => {
     cancelAnimationFrame(rafRef.current)
     stateRef.current = newStairs(readSeed(options), performance.now(), roomMode)
+    effectRef.current = null
     setSteps(0)
     setEnded(null)
     const canvas = canvasRef.current
