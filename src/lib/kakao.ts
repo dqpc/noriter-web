@@ -16,7 +16,14 @@ interface KakaoSdk {
   Share: {
     sendDefault(settings: {
       objectType: 'feed'
-      content: { title: string; description: string; imageUrl: string; link: KakaoLink }
+      content: {
+        title: string
+        description: string
+        imageUrl: string
+        imageWidth?: number
+        imageHeight?: number
+        link: KakaoLink
+      }
       buttons: { title: string; link: KakaoLink }[]
       installTalk?: boolean
     }): void
@@ -68,7 +75,15 @@ export async function shareToKakao(input: KakaoShareInput): Promise<void> {
   const link = { mobileWebUrl: url, webUrl: url }
   kakao.Share.sendDefault({
     objectType: 'feed',
-    content: { title: input.title, description: input.description, imageUrl: `${SITE_URL}/og.png`, link },
+    content: {
+      title: input.title,
+      description: input.description,
+      // 크기를 안 주면 카톡이 정사각형으로 잘라 보여준다
+      imageUrl: `${SITE_URL}/og.png`,
+      imageWidth: 1200,
+      imageHeight: 630,
+      link,
+    },
     buttons: [{ title: input.buttonTitle, link }],
     installTalk: true,
   })
