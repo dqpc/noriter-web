@@ -2890,3 +2890,7 @@ button.room-me {
   color: var(--muted);
   font-size: 11px;
 }
+
+.room-handover {
+  margin-left: auto;
+}

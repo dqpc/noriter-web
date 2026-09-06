@@ -68,6 +68,7 @@ export type ClientMessage =
   | { type: 'rematch' }
   | { type: 'state'; state: Record<string, unknown> }
   | { type: 'action'; action: Record<string, unknown> }
+  | { type: 'host'; playerId: string }
 
 export async function createRoom(gameId: string): Promise<RoomSnapshot> {
   const res = await fetch(`${API_URL}/api/rooms`, {
