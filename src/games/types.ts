@@ -26,6 +26,8 @@ export interface TurnProps {
   me: string | null
   players: TurnPlayer[]
   onAction: (action: Record<string, unknown>) => void
+  /** 서버 시계 - 내 시계 (ms). 제한 시간 계산에 더한다 */
+  clockOffset?: number
 }
 
 export interface GameHost {
@@ -43,4 +45,6 @@ export interface GameDefinition {
   Preview?: ComponentType<PreviewProps>
   turnBased?: boolean
   Turn?: ComponentType<TurnProps>
+  /** 판이 오기 전(카운트다운)에 보여줄 빈 판 */
+  idleView?: (playerIds: string[]) => Record<string, unknown>
 }

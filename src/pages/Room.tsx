@@ -41,6 +41,8 @@ export function Room() {
   const [watching, setWatching] = useState<string | null>(null)
   const [gameState, setGameState] = useState<Record<string, unknown> | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
+  const [chatClosing, setChatClosing] = useState(false)
+  const [clockOffset, setClockOffset] = useState(0)
   const [chatSeen, setChatSeen] = useState(0)
   const chatLen = useRef(0)
   const socketRef = useRef<RoomSocket | null>(null)
@@ -70,6 +72,10 @@ export function Room() {
         },
         onReconnecting: () => setConnection('reconnecting'),
         onMessage: (m) => {
+          if ((m.type === 'room' || m.type === 'gameState') && m.serverTime) {
+            const t = Date.parse(m.serverTime)
+            if (!Number.isNaN(t)) setClockOffset(t - Date.now())
+          }
           if (m.type === 'hello') setPlayerId(m.playerId)
           else if (m.type === 'room') {
             if (statusRef.current === 'WAITING' && m.room.status === 'COUNTDOWN') setChatSeen(chatLen.current)
@@ -157,7 +163,7 @@ export function Room() {
   }, [cycle])
 
   const isPlaying = room?.status === 'PLAYING' || room?.status === 'COUNTDOWN'
-  const now = useNow(isPlaying)
+  const now = useNow(isPlaying) + clockOffset
 
   if (error && !room) {
     return (
@@ -194,6 +200,19 @@ export function Room() {
   const ranked = [...room.players].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || b.score - a.score)
 
   const unread = chatOpen ? 0 : chat.slice(Math.min(chatSeen, chat.length)).filter((m) => !m.system).length
+  const openChat = () => {
+    setChatClosing(false)
+    setChatOpen(true)
+    setChatSeen(chat.length)
+  }
+  const closeChat = () => {
+    setChatClosing(true)
+    setChatSeen(chat.length)
+    window.setTimeout(() => {
+      setChatOpen(false)
+      setChatClosing(false)
+    }, 220)
+  }
 
   if (!joined) {
     if (mySeat) return <p className="page">다시 연결하는 중…</p>
@@ -237,7 +256,7 @@ export function Room() {
   }
 
   return (
-    <section className="page room">
+    <section className={`page room ${inGame ? 'live' : 'lobby'}`}>
       <div className="play-bar">
         <Link to="/" className="play-back" aria-label="목록으로">
           ←
@@ -246,15 +265,12 @@ export function Room() {
         <button type="button" className="play-best room-me" onClick={() => setPicking(true)} aria-label="캐릭터 변경">
           <CharacterAvatar id={me?.character ?? character} size={28} /> {me?.nickname ?? nickname}
         </button>
-        {inGame && (
+        {joined && (
           <button
             type="button"
-            className={`chat-fab ${unread > 0 ? 'has-unread' : ''}`}
-            aria-label="채팅 열기"
-            onClick={() => {
-              setChatOpen(true)
-              setChatSeen(chat.length)
-            }}
+            className={`chat-fab ${unread > 0 ? 'has-unread' : ''} ${chatOpen && !chatClosing ? 'open' : ''}`}
+            aria-label={chatOpen ? '채팅 닫기' : '채팅 열기'}
+            onClick={() => (chatOpen ? closeChat() : openChat())}
           >
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
               <path
@@ -297,8 +313,14 @@ export function Room() {
             </div>
             <div className="stage">
               {turnBased && game.Turn ? (
-                gameState ? (
-                  <game.Turn view={gameState} me={playerId} players={room.players} onAction={sendAction} />
+                gameState || game.idleView ? (
+                  <game.Turn
+                    view={gameState ?? game.idleView!(room.players.map((p) => p.id))}
+                    me={playerId}
+                    players={room.players}
+                    onAction={sendAction}
+                    clockOffset={clockOffset}
+                  />
                 ) : (
                   <p className="room-hint">판을 준비하는 중…</p>
                 )
@@ -398,25 +420,15 @@ export function Room() {
               ))}
             </div>
           )}
-          {chatOpen && (
-            <div className="chat-sheet" role="dialog" aria-label="채팅">
-              <div className="chat-sheet-head">
-                <span>채팅</span>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-small"
-                  onClick={() => {
-                    setChatOpen(false)
-                    setChatSeen(chat.length)
-                  }}
-                >
-                  닫기
-                </button>
-              </div>
-              <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
-            </div>
-          )}
         </div>
+      )}
+      {chatOpen && (
+        <>
+          <div className={`chat-pop-backdrop ${chatClosing ? 'closing' : ''}`} onClick={closeChat} />
+          <div className={`chat-pop ${chatClosing ? 'closing' : ''}`} role="dialog" aria-label="채팅">
+            <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} compact />
+          </div>
+        </>
       )}
     </section>
   )

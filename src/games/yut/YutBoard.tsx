@@ -25,9 +25,10 @@ const ROLL_MS = TOSS_MS + STICK_DELAY_MS * 3
 const RESULT_MS = 1100
 const STICK_SX = ['-28px', '-8px', '10px', '26px']
 const STICK_RZ = ['-14deg', '6deg', '-5deg', '12deg']
-const SPARKS: Record<string, number> = { BACKDO: 8, DO: 0, GAE: 0, GEOL: 6, YUT: 10, MO: 16 }
-const STEP_MS = 190
+const SPARKS: Record<string, number> = { BACKDO: 8, DO: 0, GAE: 0, GEOL: 4, YUT: 14, MO: 24 }
+const STEP_MS = 260
 const CAPTURE_MS = 750
+const BLOCK_MS = 900
 const THROW_CHOICES = ['BACKDO', 'DO', 'GAE', 'GEOL', 'YUT', 'MO']
 
 function useNow(active: boolean): number {
@@ -40,7 +41,7 @@ function useNow(active: boolean): number {
   return now
 }
 
-export function YutBoard({ view, me, players, onAction }: TurnProps) {
+export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnProps) {
   const v = useMemo(() => toYutView(view), [view])
   const stepKey = `${v.turn}:${v.phase}:${v.queue.map((r) => `${r.result}${r.steps}`).join(',')}`
   const [hover, setHover] = useState<{ piece?: PieceKey; dest?: number } | null>(null)
@@ -71,11 +72,17 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
     v.lastEvent?.type === 'throw' ? (v.lastEvent.boosted ? '+1' : v.lastEvent.converted ? ' (빽도 무효)' : '') : ''
   const animating = throwing || showResult
   const rolling = anim.rolling ?? v.sticks
-  const now = useNow(!v.ended)
+  const now = useNow(!v.ended) + clockOffset
 
-  const motion = useMotion(v)
-  const busy = Object.keys(motion.overrides).length > 0 || motion.linger.length > 0 || motion.captures.length > 0
-  const cardShow = useCardShow(v, busy || animating)
+  const { motion, settling } = useMotion(v)
+  const busy =
+    settling ||
+    Object.keys(motion.overrides).length > 0 ||
+    motion.linger.length > 0 ||
+    motion.captures.length > 0 ||
+    motion.blocks.length > 0
+  const blockNodes = new Set(motion.blocks.map((b) => b.node))
+  const { show: cardShow, dismiss: dismissCard } = useCardShow(v, busy || animating)
   const cardOpen = cardShow !== null
   const [shown, setShown] = useState({ turn: v.turn, phase: v.phase, actor: v.actor })
   if (!busy && !cardOpen && (shown.turn !== v.turn || shown.phase !== v.phase || shown.actor !== v.actor)) {
@@ -155,19 +162,22 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
   const nodeClass = (node: number, base: string) =>
     `${base} ${hovering ? (hotDests.has(node) ? 'hot' : 'cold') : ''} ${armedMove && armedMove.dest === node ? 'armed' : ''}`
   const pieceClass = (key: PieceKey, base: string) => `${base} ${hovering ? (hotPieces.has(key) ? 'hot' : 'cold') : ''}`
+  const onlyChoice = active && v.legalMoves.length === 1
   const hint = !active
     ? null
     : branch
       ? '어느 쪽으로 갈까요?'
-      : armedMove
-        ? '같은 곳을 한 번 더 누르면 이동합니다'
-        : selDest !== null
-          ? '어느 말로 갈까요? 말을 누르세요'
-          : selPiece !== null
-            ? '도착지를 누르세요'
-            : candidates.length === 0
-              ? '움직일 수 있는 말이 없습니다'
-              : '말이나 도착지를 누르세요'
+      : onlyChoice
+        ? '갈 곳이 하나뿐입니다. 누르면 바로 이동합니다'
+        : armedMove
+          ? '같은 곳을 한 번 더 누르면 이동합니다'
+          : selDest !== null
+            ? '어느 말로 갈까요? 말을 누르면 바로 이동합니다'
+            : selPiece !== null
+              ? '도착지를 누르세요'
+              : candidates.length === 0
+                ? '움직일 수 있는 말이 없습니다'
+                : '말이나 도착지를 누르세요'
   const eventNote =
     v.lastEvent?.type === 'skipTurn'
       ? `${nameOf(String(v.lastEvent.player))} 님은 이번 차례를 쉽니다 (쉬어!)`
@@ -177,14 +187,16 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
 
   /** 첫 번째 누름은 경로만 보여주고, 같은 수를 한 번 더 누르면 보낸다 */
   const confirm = (m: YutMove) => {
-    if (armed === moveKey(m)) send(m)
+    if (onlyChoice || armed === moveKey(m)) send(m)
     else select(selPiece, selDest, null, moveKey(m))
   }
   const pickPiece = (key: PieceKey) => {
     const ms = candidates.filter((m) => keyOf(m) === key)
     if (ms.length === 0) return
-    if (ms.length === 1) confirm(ms[0])
-    else if (selPiece === key) select(null, null)
+    if (ms.length === 1) {
+      if (selDest !== null) send(ms[0])
+      else confirm(ms[0])
+    } else if (selPiece === key) select(null, null)
     else select(key, null)
   }
   const send = (m: YutMove) => {
@@ -213,10 +225,18 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
           ) : (
             <>
               <span className={`yut-turn-badge ${myTurnShown ? 'mine' : ''}`}>
-                {phase === 'CARD' ? (myTurnShown ? '카드 선택' : '카드 대기') : myTurnShown ? '내 차례' : '상대 차례'}
+                {actor === ''
+                  ? '준비'
+                  : phase === 'CARD'
+                    ? myTurnShown
+                      ? '카드 선택'
+                      : '카드 대기'
+                    : myTurnShown
+                      ? '내 차례'
+                      : '상대 차례'}
               </span>
-              <CharacterAvatar id={characterOf(actor)} size={26} />
-              <b>{nameOf(actor)}</b>
+              {actor !== '' && <CharacterAvatar id={characterOf(actor)} size={26} />}
+              <b>{actor === '' ? '곧 시작합니다' : nameOf(actor)}</b>
               <span className="yut-turn-phase">
                 {phase === 'CARD'
                   ? myTurnShown
@@ -232,7 +252,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
                         ? '던지는 중'
                         : '말 고르는 중'}
               </span>
-              <span className="yut-timer">{Math.ceil(remainMs / 1000)}s</span>
+              {actor !== '' && <span className="yut-timer">{Math.ceil(remainMs / 1000)}s</span>}
             </>
           )}
         </div>
@@ -273,7 +293,9 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
           ))}
         </div>
       )}
-      <div className={`yut-board-wrap ${showResult && result === 'MO' ? 'shake' : ''}`}>
+      <div
+        className={`yut-board-wrap ${showResult && result === 'MO' ? 'shake' : showResult && result === 'YUT' ? 'shake-soft' : ''}`}
+      >
         <svg className="yut-board" viewBox="0 0 560 560" role="img" aria-label="말판">
           <defs>
             <radialGradient id="yut-bang-glow">
@@ -339,13 +361,14 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
               const selectable = !g.moving && active && g.ids.some((id) => candidates.some((m) => m.pieceId === id))
               const selected = selPiece !== null && g.ids.includes(selPiece as number)
               const shielded = p.effects.some((e) => e.id === 'SHIELD')
+              const blocking = shielded && blockNodes.has(g.node)
               const offset = playerOffset(v.players, p.id)
               return (
                 <g
                   key={`${p.id}-${g.ids.join('.')}`}
                   className={pieceClass(
                     g.ids[0],
-                    `yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''} ${g.moving ? 'moving' : ''} ${shielded ? 'shielded' : ''}`,
+                    `yut-piece ${mine ? 'mine' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''} ${g.moving ? 'moving' : ''} ${shielded ? 'shielded' : ''} ${blocking ? 'blocking' : ''}`,
                   )}
                   transform={`translate(${x + offset[0]} ${y + offset[1] - 18})`}
                   onClick={() => selectable && pickPiece(g.ids[0])}
@@ -375,6 +398,18 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
               )
             }),
           )}
+          {motion.blocks.map((b) => {
+            const [x, y] = NODE_POS[b.node]
+            return (
+              <g key={b.key} className="yut-block" transform={`translate(${x} ${y - 18})`}>
+                <circle className="yut-block-ring" r="16" />
+                <circle className="yut-block-ring r2" r="16" />
+                <text className="yut-block-text" y="-32">
+                  막았다!
+                </text>
+              </g>
+            )
+          })}
           {motion.captures.map((c) => {
             const [x, y] = NODE_POS[c.node]
             return (
@@ -463,6 +498,8 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
               <>
                 <i className="yut-fx-ring" />
                 <i className="yut-fx-ring r2" />
+                {result === 'MO' && <i className="yut-fx-ring r3" />}
+                {result === 'MO' && <i className="yut-fx-flash" />}
                 {Array.from({ length: SPARKS[result] ?? 0 }, (_, i) => (
                   <i
                     key={i}
@@ -485,6 +522,7 @@ export function YutBoard({ view, me, players, onAction }: TurnProps) {
             nameOf={nameOf}
             remainMs={remainMs}
             onPick={(index) => onAction({ type: 'card', index })}
+            onDismiss={dismissCard}
           />
         )}
       </div>
@@ -604,6 +642,7 @@ interface Motion {
   overrides: Record<string, number>
   linger: { playerId: string; id: number; node: number }[]
   captures: { key: string; playerId: string; node: number }[]
+  blocks: { key: string; node: number }[]
 }
 
 function pieceKey(playerId: string, id: number): string {
@@ -638,7 +677,7 @@ interface MotionPlan {
   initial: Motion
   timeline: MotionStep[]
 }
-const IDLE: Motion = { overrides: {}, linger: [], captures: [] }
+const IDLE: Motion = { overrides: {}, linger: [], captures: [], blocks: [] }
 
 function planMotion(prev: YutView, v: YutView): MotionPlan | null {
   const ev = v.lastEvent
@@ -685,7 +724,13 @@ function planMotion(prev: YutView, v: YutView): MotionPlan | null {
       }
     }
   }
-  if (Object.keys(overrides).length === 0 && linger.length === 0) return null
+  const blocked = ev && ev.blocked === true && typeof ev.dest === 'number' ? (ev.dest as number) : null
+  if (Object.keys(overrides).length === 0 && linger.length === 0 && blocked === null) return null
+  if (blocked !== null) {
+    const key = `block:${blocked}:${Date.now()}`
+    timeline.push([arrival, (m) => ({ ...m, blocks: [...m.blocks, { key, node: blocked }] })])
+    timeline.push([arrival + BLOCK_MS, (m) => ({ ...m, blocks: m.blocks.filter((b) => b.key !== key) })])
+  }
   if (linger.length > 0) {
     const captures = linger.map((l) => ({
       key: `${pieceKey(l.playerId, l.id)}:${Date.now()}`,
@@ -695,10 +740,10 @@ function planMotion(prev: YutView, v: YutView): MotionPlan | null {
     timeline.push([arrival, (m) => ({ ...m, linger: [], captures })])
     timeline.push([arrival + CAPTURE_MS, (m) => ({ ...m, captures: [] })])
   }
-  return { initial: { overrides, linger, captures: [] }, timeline }
+  return { initial: { overrides, linger, captures: [], blocks: [] }, timeline }
 }
 
-function useMotion(v: YutView): Motion {
+function useMotion(v: YutView): { motion: Motion; settling: boolean } {
   const [state, setState] = useState<{ v: YutView | null; plan: MotionPlan | null; motion: Motion }>({
     v: null,
     plan: null,
@@ -716,7 +761,7 @@ function useMotion(v: YutView): Motion {
     )
     return () => timers.forEach((t) => window.clearTimeout(t))
   }, [plan])
-  return state.motion
+  return { motion: state.motion, settling: state.v !== v }
 }
 
 function playerOffset(players: { id: string }[], id: string): [number, number] {
