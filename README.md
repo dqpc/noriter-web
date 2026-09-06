@@ -18,7 +18,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 | 2048 | 방향키 / 스와이프 | 목표 타일 512·1024·2048 선택, 클리어 타임 기록 |
 | 계단 오르기 | Shift 방향전환, Space 오르기 / 좌우 버튼 | 에너지 바, 번개 아이템, 대시(방향전환 직후 오르기, 시작 전 팁으로 안내) |
 | 윷놀이 | 클릭/터치 (던지기 → 말판의 도착지를 두 번 눌러 이동) | 2~4인 같이 하기 전용. 규칙·난수는 서버, 화면은 서버 판을 그리기만. 잡기·방 도착·시작 때 천사·악마 카드를 뽑고, 항복할 수 있다 |
-| 오늘의 단어 | 화면 자모 키보드 / 물리 키보드(두벌식 자리, 한글 자모 입력도 됨) | 혼자 하기 전용. 하루 한 문제(KST 자정 갱신), 자모 6칸·6번 도전. 판정은 서버(정답은 내려오지 않음). 결과 이모지 격자 공유, 어렵게 풀기·고대비, 문제 만들기 링크(`?code=`, 클라이언트 판정) |
+| 글딱지 | 화면 자모 키보드 / 물리 키보드(두벌식 자리, 한글 자모 입력도 됨) | 혼자 하기 전용. 하루 한 문제(KST 자정 갱신), 자모 6칸·6번 도전. 판정은 서버(정답은 내려오지 않음). 결과 이모지 격자 공유, 어렵게 풀기·고대비, 문제 만들기 링크(`?code=`, 클라이언트 판정) |
 
 ## 기능
 
@@ -33,7 +33,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 - **턴제 게임**: 윷놀이처럼 판이 하나인 게임은 서버가 상태를 갖고 `gameState` 를 내려준다. 화면은 `GameDefinition.Turn` 이 그리고 `action` 만 보낸다. 캐릭터가 겹치면 시작할 수 없다.
 - **채팅**: 대기실·결과 화면(PC 는 진행 중에도) 채팅, 입장·퇴장 알림. 저장하지 않는다. 시각은 보는 사람의 로컬 시간.
 - **캐릭터**: 십이지신 12마리 중 선택(홈·입장 화면·대기실). 처음엔 랜덤. 모든 게임이 같은 캐릭터를 쓴다.
-- **오늘의 단어**: 꼬들(kordle.kr) 규칙 그대로. 오늘 진행·설정은 localStorage, 통계는 계정이면 서버(`/api/games/word/stats`) 게스트면 localStorage. `solo: true` 게임은 방·최고 점수 UI 를 숨긴다.
+- **글딱지**: 꼬들(kordle.kr) 규칙 그대로. 오늘 진행·설정은 localStorage, 통계는 계정이면 서버(`/api/games/word/stats`) 게스트면 localStorage. `solo: true` 게임은 방·최고 점수 UI 를 숨긴다.
 - **화면 크기**: 게임판은 창·모니터 크기를 따라 커진다(PC 720px 이상에서 혼자 하기 폭 확대, 1040px 이상에서 방 화면도 확대). 게임 화면 머리글의 ⛶ 버튼은 브라우저 전체 화면(문서 전체를 요청, `body.fullscreen` 으로 하단·도크·광고 자리를 숨김). Fullscreen API 가 없는 iPhone Safari 에서는 버튼이 안 보인다.
 - 연결이 끊기면 자동 재접속. 진행도·최고 점수·설정은 localStorage.
 - **방문자 수**: 하단 오른쪽에 오늘·전체. 브라우저마다 하루 한 번 서버에 기록(서울 시간 기준).
@@ -66,7 +66,7 @@ npm run build      # dist/
 src/
   games/            게임 모듈. registry.ts 에 등록하면 목록·방·관전에 자동 반영
     <id>/logic.ts   순수 로직(테스트), Game*.tsx Canvas 렌더, Preview*.tsx 미니 뷰, Icon*.tsx
-    word/           오늘의 단어: jamo(분해·자판), judge(판정·하드 모드), share(공유 텍스트), custom(문제 코드), api, storage, GameWord.tsx
+    word/           글딱지: jamo(분해·자판), judge(판정·하드 모드), share(공유 텍스트), custom(문제 코드), api, storage, GameWord.tsx
     types.ts        GameDefinition / GameHost(onScore·onGameOver·onState) / PreviewProps / TurnProps(턴제)
   characters/       공통 캐릭터(SVG 12종, 피커, 캔버스 이미지)
   auth/             AuthContext(로그인 상태·하트비트·알림 폴링·캐릭터 동기화), useAuth/useActivity, Gate(닉네임 → 로그인/가입/게스트)

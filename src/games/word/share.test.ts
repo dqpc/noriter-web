@@ -12,7 +12,7 @@ describe('share', () => {
   it('꼬들 형식: 번호 점수 연속, 격자, 링크', () => {
     expect(
       buildShareText({ number: 12, attempts: 2, hard: true, streak: 5, rows, highContrast: false, showLink: true }),
-    ).toBe(`놀이터 단어 12 2/6* 🔥5\n⬜️🟨⬜️⬜️🟩⬜️\n🟩🟩🟩🟩🟩🟩\n${SHARE_URL}`)
+    ).toBe(`글딱지 12 2/6* 🔥5\n⬜️🟨⬜️⬜️🟩⬜️\n🟩🟩🟩🟩🟩🟩\n${SHARE_URL}`)
   })
 
   it('실패는 X, 고대비는 주황·파랑, 링크 표기 끄기', () => {
@@ -26,7 +26,7 @@ describe('share', () => {
         highContrast: true,
         showLink: false,
       }),
-    ).toBe('놀이터 단어 3 X/6\n⬜️🟦⬜️⬜️🟧⬜️')
+    ).toBe('글딱지 3 X/6\n⬜️🟦⬜️⬜️🟧⬜️')
   })
 
   it('문제 만들기 결과에는 번호 대신 제작자', () => {
@@ -41,7 +41,7 @@ describe('share', () => {
         showLink: false,
         creator: '민수',
       }),
-    ).toBe('놀이터 단어 2/6\n민수의 놀이\n⬜️🟨⬜️⬜️🟩⬜️\n🟩🟩🟩🟩🟩🟩')
+    ).toBe('글딱지 2/6\n민수의 놀이\n⬜️🟨⬜️⬜️🟩⬜️\n🟩🟩🟩🟩🟩🟩')
   })
 
   it('문제 코드는 정답 자모와 제작자를 왕복한다', () => {

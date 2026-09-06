@@ -333,7 +333,7 @@ export function GameWord() {
 
   const keyMap = useMemo(() => keyStatuses(rows, statuses), [rows, statuses])
   const countdown = useCountdown(today?.resetAt ?? null)
-  const title = custom ? `${custom.creator}의 놀이` : today ? `오늘의 단어 ${today.number}` : '오늘의 단어'
+  const title = custom ? `${custom.creator}의 놀이` : today ? `글딱지 ${today.number}` : '글딱지'
 
   if (loadError) {
     return (
@@ -454,7 +454,7 @@ export function GameWord() {
           </p>
           <p>자모는 중복될 수 있으며, 외래어도 한글 단어에 포함됩니다.</p>
           <p>
-            <b>"오늘의 단어"는 자정에 갱신됩니다.</b>
+            <b>"글딱지"는 자정에 갱신됩니다.</b>
           </p>
           <p className="word-credit">
             단어와 뜻풀이는 국립국어원 표준국어대사전을 바탕으로 했습니다. 원조는{' '}
@@ -648,7 +648,7 @@ function CreateModal({ onClose, onToast }: { onClose: () => void; onToast: (m: s
 
   return (
     <WordModal title="문제 만들기" onClose={onClose}>
-      <p className="word-create-hint">"놀이터 단어"를 만들어 함께 풀어보세요. 자모 여섯 개짜리 단어여야 합니다.</p>
+      <p className="word-create-hint">"글딱지"를 만들어 함께 풀어보세요. 자모 여섯 개짜리 단어여야 합니다.</p>
       <label className="word-create-field">
         <span>단어</span>
         <input
