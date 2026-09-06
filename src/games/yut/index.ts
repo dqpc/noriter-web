@@ -5,7 +5,7 @@ import { YutBoard } from './YutBoard'
 export const yut: GameDefinition = {
   id: 'yut',
   name: '윷놀이',
-  description: '다들 아는 그 게임. 2~4명.',
+  description: '다들 아는 그 게임.',
   Icon: IconYut,
   turnBased: true,
   Turn: YutBoard,
