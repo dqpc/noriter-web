@@ -61,7 +61,7 @@ export type ClientMessage =
   | { type: 'settings'; maxPlayers?: number; options?: Record<string, OptionValue> }
   | { type: 'start' }
   | { type: 'score'; score: number }
-  | { type: 'finish'; score: number }
+  | { type: 'finish'; score: number; moves?: string }
   | { type: 'chat'; text: string }
   | { type: 'character'; character: string }
   | { type: 'ping' }

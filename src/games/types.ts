@@ -5,6 +5,8 @@ export type GameOptions = Record<string, string | number | boolean>
 export interface GameResult {
   won: boolean
   elapsedMs: number
+  /** seed 로 시작한 판의 입력 로그. 서버가 같은 seed 로 재생해 점수를 검증한다 */
+  moves?: string
 }
 
 export type GameStateSnapshot = Record<string, unknown>

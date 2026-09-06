@@ -3,6 +3,9 @@ export const SIZE = 4
 export type Board = number[][]
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
+/** 입력 로그 한 글자. 서버(Board2048) 와 같은 값이어야 재생이 맞는다 */
+export const DIRECTION_CODE: Record<Direction, string> = { up: '0', down: '1', left: '2', right: '3' }
+
 export interface MoveResult {
   board: Board
   gained: number

@@ -6,6 +6,7 @@ import { formatDuration } from '../../lib/time'
 import { cellOrigin, drawBackground, drawBoard, drawTile, easeOut, geometry, setupCanvas, type Geometry } from './draw'
 import {
   DEFAULT_TARGET,
+  DIRECTION_CODE,
   TARGETS,
   isEnded,
   newGame,
@@ -77,9 +78,13 @@ function drawAnimated(ctx: CanvasRenderingContext2D, g: Geometry, anim: Anim, no
   return q >= 1
 }
 
-function makeRng(options?: GameOptions): () => number {
+function isSeeded(options?: GameOptions): boolean {
   const seed = Number(options?.seed)
-  return Number.isInteger(seed) && seed > 0 ? mulberry32(seed) : Math.random
+  return Number.isInteger(seed) && seed > 0
+}
+
+function makeRng(options?: GameOptions): () => number {
+  return isSeeded(options) ? mulberry32(Number(options?.seed)) : Math.random
 }
 
 export function Game2048({ host, options }: { host: GameHost; options?: GameOptions }) {
@@ -93,6 +98,8 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
   })
   const rngRef = useRef(initial.rng)
   const stateRef = useRef<GameState>(initial.state)
+  // 실제로 움직인 입력만 쌓는다. 안 움직인 입력은 난수를 안 쓰므로 재생에 없어야 한다
+  const movesRef = useRef<string[]>([])
   const [score, setScore] = useState(0)
   const [ended, setEnded] = useState<{ won: boolean; elapsedMs: number } | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
@@ -131,6 +138,7 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
       if (target === null || frozen) return
       const res = stepWithTrace(stateRef.current, dir, rngRef.current)
       if (!res.moved) return
+      movesRef.current.push(DIRECTION_CODE[dir])
       if (startedAt.current === null) startedAt.current = performance.now()
       const merged = new Set<string>()
       for (const m of res.moves) if (m.merged) merged.add(key(m.to[0], m.to[1]))
@@ -155,6 +163,7 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
       animRef.current = null
       rngRef.current = makeRng(options)
       stateRef.current = newGame(rngRef.current, next)
+      movesRef.current = []
       startedAt.current = null
       setScore(0)
       setElapsedMs(0)
@@ -186,8 +195,10 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
     host.onScore(score)
   }, [host, score])
   useEffect(() => {
-    if (ended) host.onGameOver(stateRef.current.score, ended)
-  }, [host, ended])
+    if (!ended) return
+    const moves = isSeeded(options) ? movesRef.current.join('') : undefined
+    host.onGameOver(stateRef.current.score, moves === undefined ? ended : { ...ended, moves })
+  }, [host, ended, options])
 
   useEffect(() => {
     if (ended) return

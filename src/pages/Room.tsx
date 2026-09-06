@@ -154,7 +154,9 @@ export function Room() {
   const host = useMemo<GameHost>(
     () => ({
       onScore: (score) => statusRef.current === 'PLAYING' && send({ type: 'score', score }),
-      onGameOver: (score) => statusRef.current === 'PLAYING' && send({ type: 'finish', score }),
+      onGameOver: (score, result) =>
+        statusRef.current === 'PLAYING' &&
+        send(result.moves === undefined ? { type: 'finish', score } : { type: 'finish', score, moves: result.moves }),
       onState: (state) => statusRef.current === 'PLAYING' && send({ type: 'state', state }),
     }),
     [send],
