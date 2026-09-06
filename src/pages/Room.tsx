@@ -722,8 +722,8 @@ function Chat({
   )
 }
 
+// 시간대를 지정하지 않아 보는 사람의 브라우저 로컬 시간으로 표시된다
 const clockFormat = new Intl.DateTimeFormat('ko-KR', {
-  timeZone: 'Asia/Seoul',
   hour12: false,
   hour: '2-digit',
   minute: '2-digit',
