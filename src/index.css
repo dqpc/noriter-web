@@ -2018,6 +2018,14 @@ button.room-me {
   50% { transform: translate(2px, -8px) rotate(-4deg); }
   100% { transform: translate(0, 0) rotate(0deg); }
 }
+.yut-deck-icon {
+  width: 58%;
+  height: auto;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+.yut-card-icon .yut-deck-icon {
+  width: clamp(28px, 7cqw, 56px);
+}
 .yut-deck-count {
   font-size: clamp(10px, 2cqw, 13px);
   font-weight: 800;
