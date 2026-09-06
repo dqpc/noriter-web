@@ -21,9 +21,6 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   -webkit-text-size-adjust: 100%;
-  /* 한글은 어절 단위로만 줄바꿈, 너무 긴 단어(URL 등)는 어디서든 */
-  word-break: keep-all;
-  overflow-wrap: anywhere;
   /* 모바일 브라우저 기본 제스처 차단: 당겨서 새로고침, 더블탭 확대, 길게 눌러 선택 */
   overscroll-behavior: none;
   touch-action: manipulation;
@@ -2001,10 +1998,14 @@ button.room-me {
 .yut-cards-who {
   font-size: 15px;
   font-weight: 700;
+  max-width: 62cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .yut-deck {
   position: absolute;
-  top: 12cqh;
+  top: max(12cqh, 72px);
   width: 15cqw;
   aspect-ratio: 5 / 7;
   perspective: 500px;
@@ -3095,13 +3096,14 @@ button.room-me {
   flex: 1;
 }
 
-/* 짧은 설명·제목은 두 줄이 될 때 길이를 고르게 */
+/* 설명 문구만 어절 단위 줄바꿈 + 두 줄일 때 길이 고르게. 카드·배지처럼 좁은 칸은 제외 */
 .game-card-desc,
 .entry-desc,
 .gate-sub,
 .page-sub,
-.room-hint,
-.tile-sub {
+.room-hint {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   text-wrap: pretty;
 }
 .page-title,
