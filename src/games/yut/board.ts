@@ -92,10 +92,16 @@ export function stepsBetween(
   const out: number[] = []
   for (let i = oldIndex + 1; i < oldNodes.length; i++) {
     out.push(oldNodes[i])
-    if (oldNodes[i] === next.node) return out
-    if (nodes[0] === oldNodes[i]) return [...out, ...nodes.slice(1, next.index + 1)]
+    if (oldNodes[i] === next.node) return capped(out, next.node)
+    if (nodes[0] === oldNodes[i]) return capped([...out, ...nodes.slice(1, next.index + 1)], next.node)
   }
   return [next.node]
+}
+
+/** 한 번에 앞으로 갈 수 있는 최대 칸수(모 5 + 욕심 1). 이보다 길면 빽도로 뒤 칸에 간 것이라 바로 도착 칸으로 */
+const MAX_FORWARD = 6
+function capped(route: number[], dest: number): number[] {
+  return route.length > MAX_FORWARD ? [dest] : route
 }
 
 export const CORNERS = new Set([0, 5, 10, 15])
