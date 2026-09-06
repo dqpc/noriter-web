@@ -10,6 +10,7 @@ import {
   type Notification,
   type NotificationList,
 } from '../lib/auth'
+import { fetchConversations, type DmMessage } from '../lib/dm'
 import { MeSocket } from '../lib/meSocket'
 import { getPreference, setPreference } from '../lib/storage'
 import { AuthContext, type ActivityInfo, type AuthState } from './context'
@@ -21,6 +22,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [guestName, setGuestName] = useState<string | null>(() => getPreference('me', 'guest'))
   const [notifications, setNotifications] = useState<NotificationList>(EMPTY)
   const [incomingInvite, setIncomingInvite] = useState<Notification | null>(null)
+  const [dmUnread, setDmUnread] = useState(0)
+  const [incomingDm, setIncomingDm] = useState<DmMessage | null>(null)
+  const dmListeners = useRef(new Set<(m: DmMessage) => boolean>())
   const activityRef = useRef<ActivityInfo>({ activity: 'MENU' })
   const socketRef = useRef<MeSocket | null>(null)
 
@@ -54,6 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const refreshDm = useCallback(async () => {
+    if (!getToken()) return
+    try {
+      const list = await fetchConversations()
+      setDmUnread(list.reduce((s, c) => s + c.unread, 0))
+    } catch {
+      /* 다음 푸시 때 다시 */
+    }
+  }, [])
+
   const sendActivity = useCallback(() => {
     const a = activityRef.current
     socketRef.current?.send({ type: 'activity', activity: a.activity, gameId: a.gameId, roomId: a.roomId })
@@ -68,10 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onOpen: () => {
         sendActivity()
         void refreshNotifications()
+        void refreshDm()
       },
       onMessage: (m) => {
-        if (m.type === 'hello') setNotifications((n) => ({ ...n, unread: m.unread }))
-        else if (m.type === 'notification') {
+        if (m.type === 'dm') {
+          let handled = false
+          dmListeners.current.forEach((l) => {
+            if (l(m.message)) handled = true
+          })
+          void refreshDm()
+          if (!handled && m.message.senderId !== meId) setIncomingDm(m.message)
+        } else if (m.type === 'notification') {
           setNotifications((n) => ({ unread: m.unread, items: [m.item, ...n.items.filter((i) => i.id !== m.item.id)] }))
           if (m.item.kind === 'INVITE') setIncomingInvite(m.item)
         }
@@ -86,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       socket.close()
       socketRef.current = null
     }
-  }, [meId, sendActivity, refreshNotifications])
+  }, [meId, sendActivity, refreshNotifications, refreshDm])
 
   const value = useMemo<AuthState>(
     () => ({
@@ -105,6 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setMe(null)
         setNotifications(EMPTY)
         setIncomingInvite(null)
+        setDmUnread(0)
+        setIncomingDm(null)
       },
       playAsGuest: (name) => {
         setPreference('me', 'guest', name)
@@ -130,8 +153,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshNotifications,
       incomingInvite,
       dismissInvite: () => setIncomingInvite(null),
+      dmUnread,
+      refreshDm,
+      subscribeDm: (listener) => {
+        dmListeners.current.add(listener)
+        return () => {
+          dmListeners.current.delete(listener)
+        }
+      },
+      incomingDm,
+      dismissDm: () => setIncomingDm(null),
     }),
-    [me, guestName, notifications, incomingInvite, sendActivity, refreshNotifications],
+    [me, guestName, notifications, incomingInvite, dmUnread, incomingDm, sendActivity, refreshNotifications, refreshDm],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

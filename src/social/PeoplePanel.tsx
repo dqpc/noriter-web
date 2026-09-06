@@ -13,6 +13,9 @@ import {
   type PresenceState,
   type Profile,
 } from '../lib/auth'
+import { fetchConversations, openConversation, type Conversation } from '../lib/dm'
+import { timeAgo } from '../lib/timeAgo'
+import { DmView } from './DmView'
 import { PresenceDot } from './PresenceDot'
 import { ProfileCard } from './ProfileCard'
 
@@ -25,10 +28,19 @@ const STATUS_OPTIONS: { value: Presence; state: PresenceState; label: string; de
 
 const POLL_MS = 20_000
 
-export function PeoplePanel({ onClose }: { onClose: () => void }) {
-  const { me, setPresence } = useAuth()
+export function PeoplePanel({
+  onClose,
+  initialConversation,
+}: {
+  onClose: () => void
+  initialConversation?: Conversation | null
+}) {
+  const { me, setPresence, refreshDm } = useAuth()
   const [friends, setFriends] = useState<Friend[] | null>(null)
-  const [tab, setTab] = useState<'online' | 'all'>('online')
+  const [tab, setTab] = useState<'online' | 'all' | 'chats'>(initialConversation ? 'chats' : 'online')
+  const [chat, setChat] = useState<Conversation | null>(initialConversation ?? null)
+  const [conversations, setConversations] = useState<Conversation[] | null>(null)
+  const [dmError, setDmError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [choosing, setChoosing] = useState(false)
   const [profile, setProfile] = useState<number | null>(null)
@@ -39,11 +51,40 @@ export function PeoplePanel({ onClose }: { onClose: () => void }) {
     fetchFriends()
       .then(setFriends)
       .catch(() => setFriends((f) => f ?? []))
+  const loadChats = () =>
+    fetchConversations()
+      .then(setConversations)
+      .catch(() => setConversations((c) => c ?? []))
   useEffect(() => {
     load()
+    loadChats()
     const id = window.setInterval(load, POLL_MS)
     return () => window.clearInterval(id)
   }, [])
+  const startChat = async (userId: number) => {
+    setDmError(null)
+    try {
+      setChat(await openConversation(userId))
+    } catch (e) {
+      setDmError(e instanceof Error ? e.message : '쪽지를 열 수 없습니다')
+    }
+  }
+  if (chat) {
+    return (
+      <div className="panel-backdrop" onClick={onClose}>
+        <aside className="panel people" onClick={(e) => e.stopPropagation()} aria-label="쪽지">
+          <DmView
+            conversation={chat}
+            onBack={() => {
+              setChat(null)
+              loadChats()
+              refreshDm()
+            }}
+          />
+        </aside>
+      </div>
+    )
+  }
 
   const myState = STATUS_OPTIONS.find((o) => o.value === me?.presence) ?? STATUS_OPTIONS[0]
   const q = query.trim().toLowerCase()
@@ -123,44 +164,91 @@ export function PeoplePanel({ onClose }: { onClose: () => void }) {
           <button type="button" className={tab === 'all' ? 'active' : ''} onClick={() => setTab('all')}>
             전체 {friends && friends.length > 0 && <small>{friends.length}</small>}
           </button>
+          <button
+            type="button"
+            className={tab === 'chats' ? 'active' : ''}
+            onClick={() => {
+              setTab('chats')
+              loadChats()
+            }}
+          >
+            쪽지{' '}
+            {conversations && conversations.some((c) => c.unread > 0) && (
+              <small className="tab-unread">{conversations.reduce((s, c) => s + c.unread, 0)}</small>
+            )}
+          </button>
         </div>
-        <ul className="people-list">
-          {friends === null && <li className="room-hint">불러오는 중…</li>}
-          {friends !== null && shown.length === 0 && (
-            <li className="room-hint">
-              {friends.length === 0
-                ? '아직 친구가 없어요. 대기실에서 같이 노는 사람의 프로필을 열어 추가해 보세요.'
-                : tab === 'online'
-                  ? '지금 접속한 친구가 없어요.'
-                  : '검색 결과가 없어요.'}
-            </li>
-          )}
-          {shown.map((f) => {
-            const game = f.presence.gameId ? findGame(f.presence.gameId)?.name : undefined
-            const joinable = f.presence.activity === 'LOBBY' && f.presence.roomId
-            return (
-              <li key={f.id} className={`people-row ${f.presence.state.toLowerCase()}`}>
-                <button type="button" className="people-main" onClick={() => setProfile(f.id)}>
-                  <CharacterAvatar id={f.characterId} size={32} />
+        {dmError && <p className="room-error">{dmError}</p>}
+        {tab === 'chats' && (
+          <ul className="people-list">
+            {conversations === null && <li className="room-hint">불러오는 중…</li>}
+            {conversations !== null && conversations.length === 0 && (
+              <li className="room-hint">아직 쪽지가 없어요. 친구 옆의 쪽지 버튼으로 시작해 보세요.</li>
+            )}
+            {conversations?.map((c) => (
+              <li key={c.id} className="people-row">
+                <button type="button" className="people-main" onClick={() => setChat(c)}>
+                  <CharacterAvatar id={c.otherCharacterId} size={32} />
                   <span className="people-text">
-                    <b>{f.nickname}</b>
-                    <small>
-                      <PresenceDot state={f.presence.state} size={8} /> {describeActivity(f.presence, game)}
-                      {f.presence.state !== 'OFFLINE' &&
-                        f.presence.state !== 'ONLINE' &&
-                        ` · ${PRESENCE_LABEL[f.presence.state]}`}
-                    </small>
+                    <b>{c.otherNickname}</b>
+                    <small className="dm-preview">{c.lastMessage ? c.lastMessage.body : '대화를 시작해 보세요'}</small>
+                  </span>
+                  <span className="dm-meta">
+                    {c.lastMessageAt && <time>{timeAgo(c.lastMessageAt)}</time>}
+                    {c.unread > 0 && <i className="dm-unread">{c.unread > 99 ? '99+' : c.unread}</i>}
                   </span>
                 </button>
-                {joinable && (
-                  <Link to={`/rooms/${f.presence.roomId}`} className="btn btn-small" onClick={onClose}>
-                    들어가기
-                  </Link>
-                )}
               </li>
-            )
-          })}
-        </ul>
+            ))}
+          </ul>
+        )}
+        {tab !== 'chats' && (
+          <ul className="people-list">
+            {friends === null && <li className="room-hint">불러오는 중…</li>}
+            {friends !== null && shown.length === 0 && (
+              <li className="room-hint">
+                {friends.length === 0
+                  ? '아직 친구가 없어요. 대기실에서 같이 노는 사람의 프로필을 열어 추가해 보세요.'
+                  : tab === 'online'
+                    ? '지금 접속한 친구가 없어요.'
+                    : '검색 결과가 없어요.'}
+              </li>
+            )}
+            {shown.map((f) => {
+              const game = f.presence.gameId ? findGame(f.presence.gameId)?.name : undefined
+              const joinable = f.presence.activity === 'LOBBY' && f.presence.roomId
+              return (
+                <li key={f.id} className={`people-row ${f.presence.state.toLowerCase()}`}>
+                  <button type="button" className="people-main" onClick={() => setProfile(f.id)}>
+                    <CharacterAvatar id={f.characterId} size={32} />
+                    <span className="people-text">
+                      <b>{f.nickname}</b>
+                      <small>
+                        <PresenceDot state={f.presence.state} size={8} /> {describeActivity(f.presence, game)}
+                        {f.presence.state !== 'OFFLINE' &&
+                          f.presence.state !== 'ONLINE' &&
+                          ` · ${PRESENCE_LABEL[f.presence.state]}`}
+                      </small>
+                    </span>
+                  </button>
+                  {joinable && (
+                    <Link to={`/rooms/${f.presence.roomId}`} className="btn btn-small" onClick={onClose}>
+                      들어가기
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-small"
+                    onClick={() => startChat(f.id)}
+                    aria-label="쪽지"
+                  >
+                    쪽지
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
         {choosing && (
           <div className="status-picker" onClick={() => setChoosing(false)}>
             <button type="button" className="btn btn-ghost btn-small status-back">
@@ -193,6 +281,10 @@ export function PeoplePanel({ onClose }: { onClose: () => void }) {
         <ProfileCard
           userId={profile}
           onClose={() => setProfile(null)}
+          onMessage={(id) => {
+            setProfile(null)
+            startChat(id)
+          }}
           onChanged={() => {
             load()
             if (found) setFound({ ...found, friend: !found.friend })

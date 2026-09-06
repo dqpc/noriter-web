@@ -1,8 +1,12 @@
 import { WS_URL } from './api'
 import type { Activity, Notification } from './auth'
+import type { DmMessage } from './dm'
 
 export type MeServerMessage =
-  { type: 'hello'; unread: number } | { type: 'notification'; item: Notification; unread: number } | { type: 'pong' }
+  | { type: 'hello' }
+  | { type: 'notification'; item: Notification; unread: number }
+  | { type: 'dm'; message: DmMessage; unread: number }
+  | { type: 'pong' }
 
 export type MeClientMessage =
   { type: 'activity'; activity: Activity; gameId?: string | null; roomId?: string | null } | { type: 'ping' }
