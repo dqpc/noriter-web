@@ -43,7 +43,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 
 **화면은 React 19 로, 게임은 Canvas 로 그린다.** 목록·대기실·채팅·순위표처럼 상태에 따라 바뀌는 일반 UI 는 React 컴포넌트이고, 게임판은 매 프레임 직접 그려야 해서 `<canvas>` 하나에 2D 컨텍스트로 렌더한다. 애니메이션(2048 타일 슬라이드, 계단 캐릭터 호핑·부스터 잔상)은 `requestAnimationFrame` 루프에서 처리하고, React 는 점수·종료 같은 표시용 상태만 갖는다. 페이지 이동은 React Router 로 `/games/{id}`, `/games/{id}/play`, `/rooms/{id}` 를 나눈다.
 
-**게임 규칙은 순수 TypeScript 함수로 분리했다.** `logic.ts` 는 DOM 을 모르는 함수(보드 이동, 계단 판정, 에너지 계산)만 있어서 Vitest 로 단위 테스트한다. 난수는 `mulberry32` 로 seed 를 주입받아, 같은 seed 면 같은 판이 나온다. 이 덕분에 방 대전에서 전원이 같은 타일 순서·같은 계단을 받는다. 2048 은 방에서 실제로 움직인 입력을 `DIRECTION_CODE` 한 글자씩 쌓아 두었다가 끝날 때 `finish.moves` 로 보내고, 서버가 같은 seed 로 재생해 점수를 검증한다(`scripts/replay-cases-2048.ts` 가 서버 포팅 검증용 케이스를 만든다).
+**게임 규칙은 순수 TypeScript 함수로 분리했다.** `logic.ts` 는 DOM 을 모르는 함수(보드 이동, 계단 판정, 에너지 계산)만 있어서 Vitest 로 단위 테스트한다. 난수는 `mulberry32` 로 seed 를 주입받아, 같은 seed 면 같은 판이 나온다. 이 덕분에 방 대전에서 전원이 같은 타일 순서·같은 계단을 받는다. seed 는 방이면 서버가 시작 때 내려주고, 혼자 하기도 `Play` 가 시작 때 서버 세션(`POST /api/games/{id}/plays`)에서 받아 온다(서버가 응답하지 않으면 로컬 seed 로 시작하되 기록은 남기지 않는다). 2048 은 실제로 움직인 입력을 `DIRECTION_CODE` 한 글자씩 쌓아 두었다가 끝날 때 `moves` 로 보내고, 서버가 같은 seed 로 재생해 점수를 확정한다(`scripts/replay-cases-2048.ts` 가 서버 포팅 검증용 케이스를 만든다). 계단은 경과 시간 대비 상한으로 본다. 다시 하기마다 `GameHost.startPlay` 로 새 세션을 연다.
 
 **서버와는 REST 와 WebSocket 두 통로로 통신한다.** 방 생성·조회·계정·친구·알림은 `fetch` 로(`lib/auth.ts` 가 Bearer 토큰을 붙인다), 입장·설정·시작·점수·채팅·상태 중계는 브라우저 내장 `WebSocket` 으로 주고받는다. `lib/roomClient.ts` 가 이 둘을 감싸고, 30초 하트비트와 끊김 시 자동 재접속을 담당한다. 로그인 상태는 `auth/AuthContext` 가 갖고, `lib/meSocket.ts` 로 개인 채널(`/ws/me`)을 하나 열어 둔다. 이 연결이 살아 있는 동안 서버가 나를 온라인으로 보고, 화면이 바뀌면 activity 를 보내며, 새 알림은 이 채널로 즉시 받는다. 끊기면 1.5초마다 다시 붙는다. 솔로 진행도·최고 점수와 게스트 닉네임은 `localStorage` 에 둔다.
 

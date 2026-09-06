@@ -36,6 +36,11 @@ export interface GameHost {
   onScore: (score: number) => void
   onState?: (state: GameStateSnapshot) => void
   onGameOver: (score: number, result: GameResult) => void
+  /**
+   * 혼자 하기에서 새 판을 시작할 때. 서버에 세션을 열고 seed 를 받아 온다.
+   * 서버가 응답하지 못하면 null — 게임은 그대로 시작하되 기록은 남지 않는다. 방에서는 없다
+   */
+  startPlay?: () => Promise<number | null>
 }
 
 export interface GameDefinition {

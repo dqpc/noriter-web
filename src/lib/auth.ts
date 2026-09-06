@@ -136,8 +136,18 @@ export const markAllRead = () =>
   call<void>('/api/users/me/notifications', { method: 'PATCH', body: JSON.stringify({ read: true }) })
 export const markRead = (id: number) =>
   call<void>(`/api/users/me/notifications/${id}`, { method: 'PATCH', body: JSON.stringify({ read: true }) })
-export const recordPlay = (gameId: string, score: number) =>
-  call<void>(`/api/games/${gameId}/plays`, { method: 'POST', body: JSON.stringify({ score }) })
+export interface PlayStarted {
+  playId: string
+  seed: number
+}
+export interface PlayFinished {
+  /** 서버가 확정한 점수. 재생·상한 검사로 보낸 값과 달라질 수 있다 */
+  score: number
+  adjusted: boolean
+}
+export const startPlay = (gameId: string) => call<PlayStarted>(`/api/games/${gameId}/plays`, { method: 'POST' })
+export const finishPlay = (gameId: string, playId: string, body: { score: number; moves?: string }) =>
+  call<PlayFinished>(`/api/games/${gameId}/plays/${playId}/finish`, { method: 'POST', body: JSON.stringify(body) })
 export const inviteToRoom = (roomId: string, userId: number) =>
   call<void>(`/api/rooms/${roomId}/invitations`, { method: 'POST', body: JSON.stringify({ userId }) })
 

@@ -78,13 +78,15 @@ function drawAnimated(ctx: CanvasRenderingContext2D, g: Geometry, anim: Anim, no
   return q >= 1
 }
 
-function isSeeded(options?: GameOptions): boolean {
+function seedOf(options?: GameOptions): number | null {
   const seed = Number(options?.seed)
-  return Number.isInteger(seed) && seed > 0
+  return Number.isInteger(seed) && seed > 0 ? seed : null
 }
 
-function makeRng(options?: GameOptions): () => number {
-  return isSeeded(options) ? mulberry32(Number(options?.seed)) : Math.random
+const localSeed = () => Math.floor(Math.random() * 2147483646) + 1
+
+function rngFor(seed: number | null): () => number {
+  return seed === null ? Math.random : mulberry32(seed)
 }
 
 export function Game2048({ host, options }: { host: GameHost; options?: GameOptions }) {
@@ -93,11 +95,16 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
   const roomMode = fixedTarget !== null
   const [target, setTarget] = useState<number | null>(fixedTarget)
   const [initial] = useState(() => {
-    const rng = makeRng(options)
-    return { rng, state: newGame(rng, fixedTarget ?? DEFAULT_TARGET) }
+    const seed = seedOf(options)
+    const rng = rngFor(seed)
+    return { seed, rng, state: newGame(rng, fixedTarget ?? DEFAULT_TARGET) }
   })
   const rngRef = useRef(initial.rng)
   const stateRef = useRef<GameState>(initial.state)
+  // 지금 판의 seed. seed 가 있어야 입력 로그를 서버가 재생할 수 있다
+  const seedRef = useRef<number | null>(initial.seed)
+  // 혼자 하기는 목표를 고른 뒤에야 첫 판이 시작되므로, 마운트 때 받은 세션의 seed 를 그 첫 판에 쓴다
+  const mountSeedUnusedRef = useRef(true)
   // 실제로 움직인 입력만 쌓는다. 안 움직인 입력은 난수를 안 쓰므로 재생에 없어야 한다
   const movesRef = useRef<string[]>([])
   const [score, setScore] = useState(0)
@@ -158,10 +165,11 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
   )
 
   const startWith = useCallback(
-    (next: number) => {
+    (next: number, seed: number | null) => {
       cancelAnimationFrame(rafRef.current)
       animRef.current = null
-      rngRef.current = makeRng(options)
+      seedRef.current = seed
+      rngRef.current = rngFor(seed)
       stateRef.current = newGame(rngRef.current, next)
       movesRef.current = []
       startedAt.current = null
@@ -171,17 +179,28 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
       setTarget(next)
       render()
     },
-    [render, options],
+    [render],
   )
 
-  const restart = useCallback(() => startWith(target ?? DEFAULT_TARGET), [startWith, target])
+  // 혼자 하기는 판마다 서버 세션(seed)을 새로 받는다. 방은 받은 seed 그대로
+  const begin = useCallback(
+    async (next: number) => {
+      let seed = seedOf(options)
+      if (mountSeedUnusedRef.current) mountSeedUnusedRef.current = false
+      else if (host.startPlay) seed = (await host.startPlay()) ?? localSeed()
+      startWith(next, seed)
+    },
+    [host, options, startWith],
+  )
+
+  const restart = useCallback(() => void begin(target ?? DEFAULT_TARGET), [begin, target])
 
   const pickTarget = useCallback(
     (next: number) => {
       setPreference('2048', 'target', String(next))
-      startWith(next)
+      void begin(next)
     },
-    [startWith],
+    [begin],
   )
 
   const changeTarget = useCallback(() => {
@@ -196,9 +215,9 @@ export function Game2048({ host, options }: { host: GameHost; options?: GameOpti
   }, [host, score])
   useEffect(() => {
     if (!ended) return
-    const moves = isSeeded(options) ? movesRef.current.join('') : undefined
+    const moves = seedRef.current === null ? undefined : movesRef.current.join('')
     host.onGameOver(stateRef.current.score, moves === undefined ? ended : { ...ended, moves })
-  }, [host, ended, options])
+  }, [host, ended])
 
   useEffect(() => {
     if (ended) return

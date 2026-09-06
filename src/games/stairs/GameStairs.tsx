@@ -25,13 +25,16 @@ function draw(canvas: HTMLCanvasElement, state: StairsState, options?: GameOptio
   drawEffect(canvas, effect, performance.now(), reduceMotion())
 }
 
+const localSeed = () => Math.floor(Math.random() * 2147483646) + 1
+
 function readSeed(options?: GameOptions): number {
   const seed = Number(options?.seed)
-  return Number.isInteger(seed) && seed > 0 ? seed : Math.floor(Math.random() * 2147483646) + 1
+  return Number.isInteger(seed) && seed > 0 ? seed : localSeed()
 }
 
 export function GameStairs({ host, options }: { host: GameHost; options?: GameOptions }) {
-  const roomMode = options?.seed !== undefined
+  // 방은 frozen 을 항상 넘긴다. 혼자 하기도 서버 seed 를 받으므로 seed 유무로는 구분할 수 없다
+  const roomMode = options?.frozen !== undefined
   const frozen = options?.frozen === true
   const [initial] = useState(() => newStairs(readSeed(options), performance.now(), roomMode && !frozen))
   const stateRef = useRef<StairsState>(initial)
@@ -84,15 +87,20 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   )
 
   const restart = useCallback(() => {
-    cancelAnimationFrame(rafRef.current)
-    stateRef.current = newStairs(readSeed(options), performance.now(), roomMode)
-    effectRef.current = null
-    setSteps(0)
-    setEnded(null)
-    const canvas = canvasRef.current
-    if (canvas) draw(canvas, stateRef.current, options)
-    if (roomMode) rafRef.current = requestAnimationFrame(frame)
-  }, [options, roomMode, frame])
+    const begin = (seed: number) => {
+      cancelAnimationFrame(rafRef.current)
+      stateRef.current = newStairs(seed, performance.now(), roomMode)
+      effectRef.current = null
+      setSteps(0)
+      setEnded(null)
+      const canvas = canvasRef.current
+      if (canvas) draw(canvas, stateRef.current, options)
+      if (roomMode) rafRef.current = requestAnimationFrame(frame)
+    }
+    // 혼자 하기는 판마다 서버 세션(seed)을 새로 받는다. 못 받으면 로컬 seed 로 그냥 시작
+    if (host.startPlay) void host.startPlay().then((seed) => begin(seed ?? localSeed()))
+    else begin(readSeed(options))
+  }, [host, options, roomMode, frame])
 
   useEffect(() => {
     if (!roomMode) return
