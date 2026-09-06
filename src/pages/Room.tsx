@@ -554,6 +554,17 @@ function Lobby({
                 바꾸기
               </button>
             )}
+            {isHost && p.id !== me && p.connected && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-small room-handover"
+                onClick={() =>
+                  window.confirm(`${p.nickname} 님에게 방장을 넘길까요?`) && send({ type: 'host', playerId: p.id })
+                }
+              >
+                방장 넘기기
+              </button>
+            )}
           </li>
         ))}
         {Array.from({ length: room.maxPlayers - room.players.length }, (_, i) => (
