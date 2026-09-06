@@ -3275,6 +3275,25 @@ body.fullscreen .spectate-view {
 .word-date {
   font-weight: 400;
 }
+.word-invite {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  font-size: 14px;
+}
+.word-invite-text {
+  flex: 1;
+  min-width: 0;
+}
+.word-invite .btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
 .word-hard-badge {
   font-size: 11px;
   padding: 2px 6px;

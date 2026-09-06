@@ -7,6 +7,16 @@ import { checkWord, fetchToday, fetchWordStats, submitGuess, submitResult, type 
 import { customLink, decodeCustom, encodeCustom, type CustomPuzzle } from './custom'
 import { KEYBOARD_ROWS, MAX_TRIES, WORD_LENGTH, decompose, keyToJamo } from './jamo'
 import { hardModeError, judge, keyStatuses, type Status } from './judge'
+import { InviteBanner } from './InviteBanner'
+import {
+  clearPending,
+  inviterFrom,
+  inviterSeen,
+  markInviterSeen,
+  readPending,
+  rememberPending,
+  withoutBy,
+} from './invite'
 import { fromServerGuesses } from './restore'
 import { buildKakaoCard, buildShareText } from './share'
 import {
@@ -87,6 +97,13 @@ export function GameWord() {
   const [stats, setStats] = useState<ViewStats | null>(() => (custom || me ? null : toView(loadGuestStats())))
   const [modal, setModal] = useState<Modal>(() => (custom && !hasSeenHelp() ? 'help' : null))
   const [toast, setToast] = useState<string | null>(null)
+  // 카톡 카드 ?by= 로 들어온 경우 보낸 사람. 게이트를 지나는 동안은 세션에 남겨 둔 값을 이어받는다
+  const [inviter, setInviter] = useState<number | null>(() => {
+    const fromUrl = inviterFrom(location.search)
+    if (fromUrl !== null) rememberPending(fromUrl)
+    const id = fromUrl ?? readPending()
+    return id !== null && !inviterSeen(id) ? id : null
+  })
   const [busy, setBusy] = useState(false)
   const [shake, setShake] = useState(false)
   const [flipping, setFlipping] = useState(false)
@@ -97,6 +114,20 @@ export function GameWord() {
     setToast(message)
     if (toastTimer.current) window.clearTimeout(toastTimer.current)
     toastTimer.current = window.setTimeout(() => setToast(null), ms)
+  }, [])
+
+  // 새로고침마다 배너가 다시 뜨지 않게 by 는 URL 에서 지운다 (라우터를 안 거쳐야 custom 판이 다시 그려지지 않는다)
+  useEffect(() => {
+    if (inviterFrom(location.search) === null) return
+    window.history.replaceState(null, '', `${location.pathname}${withoutBy(location.search)}${location.hash}`)
+  }, [location.pathname, location.search, location.hash])
+
+  const finishInvite = useCallback(() => {
+    setInviter((id) => {
+      if (id !== null) markInviterSeen(id)
+      return null
+    })
+    clearPending()
   }, [])
 
   // 오늘의 문제 불러오기 + 저장된 진행 복원
@@ -364,10 +395,15 @@ export function GameWord() {
   const shareKakao = async () => {
     const card = buildKakaoCard(shareInput())
     try {
+      // 문제 만들기 링크는 ?code= 가 있어야 같은 문제가 열리고, 계정이면 by= 로 받는 쪽에 친구 추가를 권한다
+      const params = new URLSearchParams()
+      const code = new URLSearchParams(location.search).get('code')
+      if (custom && code) params.set('code', code)
+      if (me) params.set('by', String(me.id))
+      const qs = params.toString()
       await shareToKakao({
         ...card,
-        // 문제 만들기 링크는 ?code= 가 있어야 같은 문제가 열린다
-        path: custom ? `${location.pathname}${location.search}` : '/games/word',
+        path: `${custom ? location.pathname : '/games/word'}${qs ? `?${qs}` : ''}`,
         buttonTitle: '도전하기',
       })
     } catch (e) {
@@ -417,6 +453,8 @@ export function GameWord() {
           </button>
         </div>
       </div>
+
+      {inviter !== null && <InviteBanner inviterId={inviter} onDone={finishInvite} onToast={showToast} />}
 
       <div className={`word-grid ${shake ? 'shake' : ''}`} role="grid" aria-label="추측 격자">
         {Array.from({ length: MAX_TRIES }, (_, r) => {
