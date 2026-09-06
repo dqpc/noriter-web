@@ -3189,7 +3189,8 @@ button.room-me {
 }
 
 /* 큰 화면: 게임판을 창 크기에 맞춰 키운다 (피드백: 화면 비율 조정) */
-.play-fullscreen {
+.play-fullscreen,
+.play-home {
   margin-left: 4px;
 }
 @media (min-width: 720px) {
