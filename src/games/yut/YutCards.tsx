@@ -131,7 +131,7 @@ export function YutCards({
         <div className="yut-card-desc">
           <b>{show.card.label}</b>
           <span>{show.card.description}</span>
-          <em className="yut-card-continue">화면을 눌러 계속</em>
+          <em className="yut-card-continue">{show.hurry ? '잠시 후 계속' : '화면을 눌러 계속'}</em>
         </div>
       )}
     </div>
