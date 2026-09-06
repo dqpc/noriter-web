@@ -82,7 +82,11 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
     motion.captures.length > 0 ||
     motion.blocks.length > 0
   const blockNodes = new Set(motion.blocks.map((b) => b.node))
-  const { show: cardShow, dismiss: dismissCard } = useCardShow(v, busy || animating)
+  const { show: cardShow, dismiss: dismissCard } = useCardShow(
+    v,
+    busy || animating,
+    me !== null && v.actor === me && !v.ended,
+  )
   const cardOpen = cardShow !== null
   const [shown, setShown] = useState({ turn: v.turn, phase: v.phase, actor: v.actor })
   if (!busy && !cardOpen && (shown.turn !== v.turn || shown.phase !== v.phase || shown.actor !== v.actor)) {
