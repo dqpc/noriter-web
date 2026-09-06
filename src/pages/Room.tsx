@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { CharacterAvatar, CharacterPicker, findCharacter, getMyCharacter } from '../characters'
 import { useActivity, useAuth } from '../auth/useAuth'
 import { getToken } from '../lib/auth'
+import { kakaoShareAvailable, shareToKakao } from '../lib/kakao'
 import { InviteDialog } from '../social/InviteDialog'
 import { ProfileCard } from '../social/ProfileCard'
 import type { GameDefinition, GameHost } from '../games/types'
@@ -502,6 +503,16 @@ function Lobby({
     }
   }
   const share = () => navigator.share({ title: `${room.game.name} 함께 하기`, url: inviteUrl }).catch(() => {})
+  const shareKakao = () =>
+    shareToKakao({
+      title: '놀이터에서 같이 하자',
+      description: `${room.game.name} 방에 초대할게. 들어와서 같이 한 판!`,
+      path: `/rooms/${room.id}`,
+      buttonTitle: '방 들어가기',
+    }).catch((e: unknown) => {
+      console.warn(e)
+      window.prompt('초대 링크', inviteUrl)
+    })
   const maxRange = Array.from(
     { length: room.game.maxPlayersLimit - room.game.minPlayers + 1 },
     (_, i) => room.game.minPlayers + i,
@@ -521,6 +532,11 @@ function Lobby({
           {canShare && (
             <button type="button" className="btn btn-ghost" onClick={share}>
               공유
+            </button>
+          )}
+          {kakaoShareAvailable && (
+            <button type="button" className="btn btn-ghost" onClick={() => void shareKakao()}>
+              카톡으로 초대
             </button>
           )}
           {onInvite && (

@@ -37,6 +37,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 - **화면 크기**: 게임판은 창·모니터 크기를 따라 커진다(PC 720px 이상에서 혼자 하기 폭 확대, 1040px 이상에서 방 화면도 확대). 게임 화면 머리글의 ⛶ 버튼은 브라우저 전체 화면(문서 전체를 요청, `body.fullscreen` 으로 하단·도크·광고 자리를 숨김). Fullscreen API 가 없는 iPhone Safari 에서는 버튼이 안 보인다.
 - 연결이 끊기면 자동 재접속. 진행도·최고 점수·설정은 localStorage.
 - **방문자 수**: 하단 오른쪽에 오늘·전체. 브라우저마다 하루 한 번 서버에 기록(서울 시간 기준).
+- **카톡으로 공유**: 글딱지 결과 화면과 방 대기실에 카카오톡 공유 버튼(피드 카드, `og.png` 미리보기). `VITE_KAKAO_JS_KEY` 가 없는 빌드에서는 버튼이 숨는다.
 
 ## 기술 스택
 
@@ -46,7 +47,7 @@ push 되면 GitHub Actions 가 Cloudflare Workers 로 자동 배포한다. 백�
 
 **서버와는 REST 와 WebSocket 두 통로로 통신한다.** 방 생성·조회·계정·친구·알림은 `fetch` 로(`lib/auth.ts` 가 Bearer 토큰을 붙인다), 입장·설정·시작·점수·채팅·상태 중계는 브라우저 내장 `WebSocket` 으로 주고받는다. `lib/roomClient.ts` 가 이 둘을 감싸고, 30초 하트비트와 끊김 시 자동 재접속을 담당한다. 로그인 상태는 `auth/AuthContext` 가 갖고, `lib/meSocket.ts` 로 개인 채널(`/ws/me`)을 하나 열어 둔다. 이 연결이 살아 있는 동안 서버가 나를 온라인으로 보고, 화면이 바뀌면 activity 를 보내며, 새 알림은 이 채널로 즉시 받는다. 끊기면 1.5초마다 다시 붙는다. 솔로 진행도·최고 점수와 게스트 닉네임은 `localStorage` 에 둔다.
 
-**빌드와 배포는 Vite 와 Cloudflare Workers 다.** Vite 가 개발 서버(핫 리로드, 같은 와이파이의 폰 접속)와 프로덕션 번들을 맡고, 브랜치에 따라 `VITE_APP_ENV` / `VITE_API_URL` / `VITE_SITE_URL` 을 주입해 dev 와 prod 를 가른다. `VITE_SITE_URL` 은 `index.html` 의 OG 메타태그(카톡·슬랙 링크 미리보기, `public/og.png`)에 절대 주소로 들어간다. 결과물 `dist/` 는 Wrangler 로 Cloudflare Workers 정적 에셋에 올리고(`wrangler.jsonc`), SPA 라우팅은 Workers 의 폴백 설정이 처리한다. GitHub Actions 가 `develop` 은 `noriter-web-dev`, `main` 은 `noriter-web` 워커로 자동 배포한다.
+**빌드와 배포는 Vite 와 Cloudflare Workers 다.** Vite 가 개발 서버(핫 리로드, 같은 와이파이의 폰 접속)와 프로덕션 번들을 맡고, 브랜치에 따라 `VITE_APP_ENV` / `VITE_API_URL` / `VITE_SITE_URL` 을 주입해 dev 와 prod 를 가른다. `VITE_SITE_URL` 은 `index.html` 의 OG 메타태그(카톡·슬랙 링크 미리보기, `public/og.png`)에 절대 주소로 들어간다. 카카오톡 공유는 `lib/kakao.ts` 가 Kakao SDK for JavaScript 를 버튼을 누를 때 한 번만 내려받아 쓰고, 키 `VITE_KAKAO_JS_KEY` 는 GitHub secret `KAKAO_JS_KEY` 로 주입한다(로컬은 `.env.local`). 키는 Kakao Developers 의 JavaScript SDK 도메인·제품 링크 웹 도메인에 등록된 주소에서만 동작한다. 결과물 `dist/` 는 Wrangler 로 Cloudflare Workers 정적 에셋에 올리고(`wrangler.jsonc`), SPA 라우팅은 Workers 의 폴백 설정이 처리한다. GitHub Actions 가 `develop` 은 `noriter-web-dev`, `main` 은 `noriter-web` 워커로 자동 배포한다.
 
 **코드 품질 도구**는 oxlint(린트), Prettier(포맷), Vitest(테스트)이고, PR 마다 GitHub Actions 에서 린트·테스트·빌드를 돌린다. 캐릭터는 인라인 SVG 문자열로 두어 React 에서는 그대로, Canvas 에서는 data URI 이미지로 같은 그림을 쓴다.
 
