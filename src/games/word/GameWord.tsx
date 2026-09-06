@@ -456,17 +456,7 @@ export function GameWord() {
           <p>
             <b>"글딱지"는 자정에 갱신됩니다.</b>
           </p>
-          <p className="word-credit">
-            단어와 뜻풀이는 국립국어원 표준국어대사전을 바탕으로 했습니다. 원조는{' '}
-            <a href="https://www.nytimes.com/games/wordle" target="_blank" rel="noreferrer">
-              Wordle
-            </a>
-            , 한글 규칙은{' '}
-            <a href="https://kordle.kr" target="_blank" rel="noreferrer">
-              꼬들
-            </a>
-            을 따랐습니다.
-          </p>
+          <p className="word-credit">단어와 뜻풀이는 국립국어원 표준국어대사전을 바탕으로 했습니다.</p>
         </WordModal>
       )}
 
