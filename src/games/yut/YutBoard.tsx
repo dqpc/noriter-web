@@ -25,7 +25,7 @@ const ROLL_MS = TOSS_MS + STICK_DELAY_MS * 3
 const RESULT_MS = 1100
 const STICK_SX = ['-28px', '-8px', '10px', '26px']
 const STICK_RZ = ['-14deg', '6deg', '-5deg', '12deg']
-const SPARKS: Record<string, number> = { BACKDO: 8, DO: 0, GAE: 0, GEOL: 6, YUT: 10, MO: 16 }
+const SPARKS: Record<string, number> = { BACKDO: 8, DO: 0, GAE: 0, GEOL: 4, YUT: 14, MO: 24 }
 const STEP_MS = 260
 const CAPTURE_MS = 750
 const BLOCK_MS = 900
@@ -293,7 +293,9 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
           ))}
         </div>
       )}
-      <div className={`yut-board-wrap ${showResult && result === 'MO' ? 'shake' : ''}`}>
+      <div
+        className={`yut-board-wrap ${showResult && result === 'MO' ? 'shake' : showResult && result === 'YUT' ? 'shake-soft' : ''}`}
+      >
         <svg className="yut-board" viewBox="0 0 560 560" role="img" aria-label="말판">
           <defs>
             <radialGradient id="yut-bang-glow">
@@ -496,6 +498,8 @@ export function YutBoard({ view, me, players, onAction, clockOffset = 0 }: TurnP
               <>
                 <i className="yut-fx-ring" />
                 <i className="yut-fx-ring r2" />
+                {result === 'MO' && <i className="yut-fx-ring r3" />}
+                {result === 'MO' && <i className="yut-fx-flash" />}
                 {Array.from({ length: SPARKS[result] ?? 0 }, (_, i) => (
                   <i
                     key={i}
