@@ -18,6 +18,7 @@ import {
 } from '../lib/roomClient'
 import { forgetRoom, getPlayerToken, getPreference, rememberRoom, setPreference } from '../lib/storage'
 import { formatDuration } from '../lib/time'
+import { FullscreenButton } from '../components/FullscreenButton'
 
 function useNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now())
@@ -301,6 +302,7 @@ export function Room() {
             {unread > 0 && <span className="chat-fab-badge">{unread > 99 ? '99+' : unread}</span>}
           </button>
         )}
+        <FullscreenButton />
       </div>
       {picking && <CharacterPicker value={character} onChange={changeCharacter} onClose={() => setPicking(false)} />}
       {profileUser !== null && <ProfileCard userId={profileUser} onClose={() => setProfileUser(null)} />}

@@ -3187,3 +3187,55 @@ button.room-me {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* 큰 화면: 게임판을 창 크기에 맞춰 키운다 (피드백: 화면 비율 조정) */
+.play-fullscreen {
+  margin-left: 4px;
+}
+@media (min-width: 720px) {
+  .app-main:has(.play) {
+    max-width: 720px;
+  }
+  .play .stairs-board-wrap {
+    height: min(72dvh, 820px);
+  }
+  .play .g2048-board-wrap {
+    max-width: min(100%, calc(100dvh - 200px));
+  }
+}
+@media (min-width: 1040px) {
+  .app-main:has(.play) {
+    max-width: 860px;
+  }
+  .room-live .room-play {
+    max-width: 760px;
+  }
+  .room-live .stairs-board-wrap {
+    height: min(76dvh, 900px);
+  }
+}
+
+/* 전체 화면: 게임만 남긴다 (body.fullscreen 은 lib/fullscreen.ts 가 건다) */
+body.fullscreen .app-footer,
+body.fullscreen .dock,
+body.fullscreen .ad-slot {
+  display: none;
+}
+body.fullscreen .app-main {
+  padding: 8px 12px;
+}
+body.fullscreen .app-main:has(.play) {
+  max-width: min(100%, 1100px);
+}
+body.fullscreen .play .stairs-board-wrap,
+body.fullscreen .room-live .stairs-board-wrap {
+  height: calc(100dvh - 150px);
+}
+body.fullscreen .play .g2048-board-wrap,
+body.fullscreen .room-live .g2048-board-wrap {
+  max-width: min(100%, calc(100dvh - 140px));
+}
+body.fullscreen .yut-board-wrap,
+body.fullscreen .spectate-view {
+  max-width: min(100%, calc(100dvh - 200px));
+}
