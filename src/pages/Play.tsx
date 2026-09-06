@@ -6,6 +6,7 @@ import { getBestScore, setBestScore } from '../lib/storage'
 import { useActivity } from '../auth/useAuth'
 import { recordPlay } from '../lib/auth'
 import { FullscreenButton } from '../components/FullscreenButton'
+import { HomeButton } from '../components/HomeButton'
 
 export function Play() {
   const { gameId } = useParams()
@@ -61,6 +62,7 @@ export function Play() {
             BEST <b>{best}</b>
           </span>
         )}
+        <HomeButton />
         <FullscreenButton />
       </div>
       <Component host={host} />
