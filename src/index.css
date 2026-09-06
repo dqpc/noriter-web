@@ -3490,6 +3490,11 @@ body.fullscreen .spectate-view {
   padding-top: 12px;
   border-top: 1px solid var(--surface-2);
 }
+.word-share-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
 .word-next {
   display: grid;
   gap: 2px;

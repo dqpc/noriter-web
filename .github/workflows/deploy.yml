@@ -17,6 +17,7 @@ jobs:
       VITE_APP_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
       VITE_API_URL: ${{ github.ref_name == 'main' && 'https://noriter-api.asgd56.workers.dev' || 'https://noriter-api-dev.asgd56.workers.dev' }}
       VITE_SITE_URL: ${{ github.ref_name == 'main' && 'https://noriter-web.asgd56.workers.dev' || 'https://noriter-web-dev.asgd56.workers.dev' }}
+      VITE_KAKAO_JS_KEY: ${{ secrets.KAKAO_JS_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

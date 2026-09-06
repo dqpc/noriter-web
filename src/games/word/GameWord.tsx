@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { ApiError } from '../../lib/auth'
+import { kakaoShareAvailable, shareToKakao } from '../../lib/kakao'
 import { checkWord, fetchToday, fetchWordStats, submitGuess, submitResult, type ServerStats, type Today } from './api'
 import { customLink, decodeCustom, encodeCustom, type CustomPuzzle } from './custom'
 import { KEYBOARD_ROWS, MAX_TRIES, WORD_LENGTH, decompose, keyToJamo } from './jamo'
@@ -304,17 +305,19 @@ export function GameWord() {
     if (!finished) persist({ hard: next })
   }
 
+  const shareInput = () => ({
+    number,
+    attempts: won ? rows.length : null,
+    hard,
+    streak: settings.showStreak && stats && !custom ? stats.currentStreak : null,
+    rows: statuses,
+    highContrast: settings.highContrast,
+    showLink: settings.showLink && !custom,
+    creator: custom?.creator,
+  })
+
   const share = async () => {
-    const text = buildShareText({
-      number,
-      attempts: won ? rows.length : null,
-      hard,
-      streak: settings.showStreak && stats && !custom ? stats.currentStreak : null,
-      rows: statuses,
-      highContrast: settings.highContrast,
-      showLink: settings.showLink && !custom,
-      creator: custom?.creator,
-    })
+    const text = buildShareText(shareInput())
     try {
       if (navigator.share) {
         await navigator.share({ text })
@@ -328,6 +331,22 @@ export function GameWord() {
       showToast('결과가 클립보드에 복사되었어요.')
     } catch {
       showToast('복사하지 못했어요. 길게 눌러 복사해 주세요.')
+    }
+  }
+
+  const shareKakao = async () => {
+    const [head, ...grid] = buildShareText({ ...shareInput(), showLink: false }).split('\n')
+    try {
+      await shareToKakao({
+        title: head,
+        description: grid.join('\n'),
+        // 문제 만들기 링크는 ?code= 가 있어야 같은 문제가 열린다
+        path: custom ? `${location.pathname}${location.search}` : '/games/word',
+        buttonTitle: '도전하기',
+      })
+    } catch (e) {
+      console.warn(e)
+      showToast('카카오톡 공유를 열지 못했어요.')
     }
   }
 
@@ -505,9 +524,16 @@ export function GameWord() {
                   <b>{countdown}</b>
                 </div>
               )}
-              <button type="button" className="btn" onClick={() => void share()}>
-                결과 복사
-              </button>
+              <div className="word-share-actions">
+                {kakaoShareAvailable && (
+                  <button type="button" className="btn btn-ghost" onClick={() => void shareKakao()}>
+                    카톡으로 공유
+                  </button>
+                )}
+                <button type="button" className="btn" onClick={() => void share()}>
+                  결과 복사
+                </button>
+              </div>
             </div>
           )}
           {!custom && (
