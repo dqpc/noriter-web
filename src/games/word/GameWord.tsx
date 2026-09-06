@@ -351,7 +351,9 @@ export function GameWord() {
 
   const keyMap = useMemo(() => keyStatuses(rows, statuses), [rows, statuses])
   const countdown = useCountdown(today?.resetAt ?? null)
-  const title = custom ? `${custom.creator}의 놀이` : today ? `글딱지 ${today.number}` : '글딱지'
+  // 숫자만 있으면 회차인지 몰라서 #회차 · 날짜로
+  const title = custom ? `${custom.creator}의 놀이` : today ? `오늘의 단어 #${today.number}` : '글딱지'
+  const dateLabel = !custom && today ? formatDate(today.date) : null
 
   if (loadError) {
     return (
@@ -366,6 +368,7 @@ export function GameWord() {
       <div className="word-top">
         <span className="word-title">
           {title}
+          {dateLabel && <span className="word-date">· {dateLabel}</span>}
           {hard && <span className="word-hard-badge">어렵게</span>}
         </span>
         <div className="word-top-actions">
@@ -575,6 +578,11 @@ export function GameWord() {
       {modal === 'create' && <CreateModal onClose={() => setModal(null)} onToast={showToast} />}
     </div>
   )
+}
+
+function formatDate(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number)
+  return `${m}월 ${d}일`
 }
 
 function WordModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
