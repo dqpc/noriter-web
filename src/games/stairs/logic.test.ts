@@ -1,16 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BONUS_EVERY,
+  BONUS_RATIO,
   BOOST_STEPS,
   BOOST_WINDOW_MS,
   ITEM_MIN_STEP,
+  WARMUP_START,
+  WARMUP_STEPS,
   actionFor,
   displaySteps,
+  drainRate,
   makeItems,
   makePattern,
   newStairs,
   press,
   tick,
 } from './logic'
+
+function climb(s: ReturnType<typeof newStairs>, to: number, stepMs = 300) {
+  for (let i = s.steps + 1; i <= to; i++) s = press(s, actionFor(s, i), i * stepMs)
+  return s
+}
 
 describe('stairs', () => {
   it('같은 seed 는 같은 계단', () => {
@@ -48,10 +58,8 @@ describe('stairs', () => {
     for (let i = 1; i < ITEM_MIN_STEP; i++) expect(items(i)).toBe(false)
     let first = ITEM_MIN_STEP
     while (!items(first)) first++
-    let s = newStairs(11)
-    for (let i = 1; i < first; i++) s = press(s, actionFor(s, i), i * 300)
-    const rate = s.rules.drainPerSec * (1 + s.rules.drainGrowthPerStep * s.steps)
-    const at = (first - 1) * 300 + ((s.energy * 0.6) / rate) * 1000
+    let s = climb(newStairs(11), first - 1)
+    const at = (first - 1) * 300 + ((s.energy * 0.6) / drainRate(s)) * 1000
     s = tick(s, at)
     expect(s.ended).toBe(false)
     expect(s.energy).toBeLessThan(s.rules.maxEnergy * 0.5)
@@ -89,9 +97,49 @@ describe('stairs', () => {
     expect(tick(s, 1500).energy).toBeLessThan(s.rules.maxEnergy)
   })
   it('에너지는 최대치를 넘지 않는다', () => {
-    let s = newStairs(3)
-    for (let i = 1; i <= 5; i++) s = press(s, actionFor(s, i), i * 300)
+    const s = climb(newStairs(3), 5)
     expect(s.steps).toBe(5)
     expect(s.energy).toBeLessThanOrEqual(s.rules.maxEnergy)
+  })
+  it('초반에는 에너지가 천천히 줄고, 워밍업이 끝나면 원래 속도가 된다', () => {
+    const s0 = newStairs(3)
+    const base = s0.rules.drainPerSec
+    expect(drainRate(s0)).toBeCloseTo(base * WARMUP_START)
+    const mid = climb(s0, WARMUP_STEPS / 2)
+    expect(drainRate(mid)).toBeGreaterThan(drainRate(s0))
+    expect(drainRate(mid)).toBeLessThan(base * (1 + mid.rules.drainGrowthPerStep * mid.steps))
+    const done = climb(s0, WARMUP_STEPS)
+    expect(drainRate(done)).toBeCloseTo(base * (1 + done.rules.drainGrowthPerStep * done.steps))
+  })
+  it('10칸마다 보너스 에너지를 받고 bonusAt 에 기록된다', () => {
+    const s0 = newStairs(21)
+    let s = climb(s0, BONUS_EVERY - 1)
+    expect(s.bonusAt).toBeNull()
+    s = tick(s, s.updatedAt + 1500)
+    expect(s.ended).toBe(false)
+    const before = s.energy
+    s = press(s, actionFor(s, BONUS_EVERY), s.updatedAt)
+    expect(s.steps).toBe(BONUS_EVERY)
+    expect(s.bonusAt).toBe(BONUS_EVERY)
+    const expected = s.itemAt(BONUS_EVERY)
+      ? s.rules.maxEnergy
+      : Math.min(s.rules.maxEnergy, before + s.rules.gainPerStep + s.rules.maxEnergy * BONUS_RATIO)
+    expect(s.energy).toBeCloseTo(expected)
+    s = press(s, actionFor(s, BONUS_EVERY + 1), s.updatedAt + 100)
+    expect(s.bonusAt).toBe(BONUS_EVERY)
+  })
+  it('부스터로 10의 배수 칸을 지나쳐도 보너스를 받는다', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      let s = climb(newStairs(seed), BONUS_EVERY - 2)
+      if (actionFor(s, s.steps + 1) !== 'TURN') continue
+      const t = s.updatedAt + 300
+      s = press(s, 'TURN', t)
+      expect(s.steps).toBe(BONUS_EVERY - 1)
+      s = press(s, 'CLIMB', t + 50)
+      expect(s.steps).toBe(BONUS_EVERY - 1 + BOOST_STEPS)
+      expect(s.bonusAt).toBe(BONUS_EVERY)
+      return
+    }
+    throw new Error('부스터 가능한 seed 를 찾지 못함')
   })
 })

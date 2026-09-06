@@ -10,14 +10,12 @@ export function YutCards({
   nameOf,
   remainMs,
   onPick,
-  onDismiss,
 }: {
   show: CardShow
   me: string | null
   nameOf: (id: string) => string
   remainMs: number
   onPick: (index: number) => void
-  onDismiss: () => void
 }) {
   const mine = show.player === me
   const canPick = show.stage === 'pick' && mine
@@ -26,7 +24,6 @@ export function YutCards({
     <div
       className={`yut-cards stage-${show.stage} ${show.card ? `kind-${show.card.kind.toLowerCase()}` : ''}`}
       role="dialog"
-      onClick={() => show.stage === 'reveal' && onDismiss()}
     >
       <div className="yut-cards-head">
         <span className="yut-cards-title">{title}</span>
@@ -131,7 +128,6 @@ export function YutCards({
         <div className="yut-card-desc">
           <b>{show.card.label}</b>
           <span>{show.card.description}</span>
-          <em className="yut-card-continue">화면을 눌러 계속</em>
         </div>
       )}
     </div>

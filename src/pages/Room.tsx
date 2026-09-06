@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CharacterAvatar, CharacterPicker, findCharacter, getMyCharacter, setMyCharacter } from '../characters'
+import { CharacterAvatar, CharacterPicker, findCharacter, getMyCharacter } from '../characters'
+import { useActivity, useAuth } from '../auth/useAuth'
+import { getToken } from '../lib/auth'
+import { kakaoShareAvailable, shareToKakao } from '../lib/kakao'
+import { InviteDialog } from '../social/InviteDialog'
+import { ProfileCard } from '../social/ProfileCard'
 import type { GameDefinition, GameHost } from '../games/types'
 import { findGame } from '../games/registry'
 import {
@@ -14,6 +19,7 @@ import {
 } from '../lib/roomClient'
 import { forgetRoom, getPlayerToken, getPreference, rememberRoom, setPreference } from '../lib/storage'
 import { formatDuration } from '../lib/time'
+import { FullscreenButton } from '../components/FullscreenButton'
 
 function useNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now())
@@ -29,7 +35,10 @@ export function Room() {
   const { roomId = '' } = useParams()
   const [room, setRoom] = useState<RoomSnapshot | null | undefined>(undefined)
   const [playerId, setPlayerId] = useState<string | null>(null)
+  const auth = useAuth()
   const [nickname, setNickname] = useState(() => getPreference('room', 'nickname') ?? '')
+  const [profileUser, setProfileUser] = useState<number | null>(null)
+  const [inviting, setInviting] = useState(false)
   const [playerToken] = useState(getPlayerToken)
   const [joined, setJoined] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,6 +56,7 @@ export function Room() {
   const chatLen = useRef(0)
   const socketRef = useRef<RoomSocket | null>(null)
   const statusRef = useRef<RoomStatus | null>(null)
+  useActivity(room?.status === 'WAITING' || room?.status === undefined ? 'LOBBY' : 'PLAYING', room?.gameId, roomId)
 
   useEffect(() => {
     let cancelled = false
@@ -68,7 +78,13 @@ export function Room() {
       const socket = new RoomSocket(roomId, {
         onOpen: () => {
           setConnection('open')
-          socket.send({ type: 'join', nickname: name, character, playerId: playerToken })
+          socket.send({
+            type: 'join',
+            nickname: name,
+            character,
+            playerId: playerToken,
+            token: getToken() ?? undefined,
+          })
         },
         onReconnecting: () => setConnection('reconnecting'),
         onMessage: (m) => {
@@ -118,11 +134,17 @@ export function Room() {
   useEffect(() => {
     if (mySeat && !joined) connect(mySeat.nickname)
   }, [mySeat, joined, connect])
+  // 계정이 있으면 닉네임을 묻지 않고 바로 들어간다 (초대 수락도 이 경로)
+  const account = auth.me
+  useEffect(() => {
+    if (!account || !room || joined || mySeat) return
+    if (room.status === 'WAITING' && room.players.length < room.maxPlayers) connect(account.nickname)
+  }, [account, room, joined, mySeat, connect])
 
   const send = useCallback((msg: Parameters<RoomSocket['send']>[0]) => socketRef.current?.send(msg), [])
 
   const changeCharacter = (id: string) => {
-    setMyCharacter(id)
+    auth.changeCharacter(id)
     setCharacter(id)
     if (joined) send({ type: 'character', character: id })
   }
@@ -132,7 +154,9 @@ export function Room() {
   const host = useMemo<GameHost>(
     () => ({
       onScore: (score) => statusRef.current === 'PLAYING' && send({ type: 'score', score }),
-      onGameOver: (score) => statusRef.current === 'PLAYING' && send({ type: 'finish', score }),
+      onGameOver: (score, result) =>
+        statusRef.current === 'PLAYING' &&
+        send(result.moves === undefined ? { type: 'finish', score } : { type: 'finish', score, moves: result.moves }),
       onState: (state) => statusRef.current === 'PLAYING' && send({ type: 'state', state }),
     }),
     [send],
@@ -281,15 +305,32 @@ export function Room() {
             {unread > 0 && <span className="chat-fab-badge">{unread > 99 ? '99+' : unread}</span>}
           </button>
         )}
+        <FullscreenButton />
       </div>
       {picking && <CharacterPicker value={character} onChange={changeCharacter} onClose={() => setPicking(false)} />}
+      {profileUser !== null && <ProfileCard userId={profileUser} onClose={() => setProfileUser(null)} />}
+      {inviting && (
+        <InviteDialog
+          roomId={room.id}
+          inRoom={new Set(room.players.flatMap((p) => (p.userId === null ? [] : [p.userId])))}
+          onClose={() => setInviting(false)}
+        />
+      )}
       {error && <p className="room-error">{error}</p>}
       {connection === 'reconnecting' && <p className="room-hint">연결이 끊겨 다시 붙는 중…</p>}
       {connection === 'closed' && <p className="room-error">방이 없어졌습니다. 목록으로 돌아가 주세요.</p>}
 
       {room.status === 'WAITING' && (
         <div className="room-layout fade-in">
-          <Lobby room={room} isHost={isHost} me={playerId} send={send} onPick={() => setPicking(true)} />
+          <Lobby
+            room={room}
+            isHost={isHost}
+            me={playerId}
+            send={send}
+            onPick={() => setPicking(true)}
+            onProfile={setProfileUser}
+            onInvite={auth.me ? () => setInviting(true) : undefined}
+          />
           <Chat messages={chat} me={playerId} onSend={(text) => send({ type: 'chat', text })} />
         </div>
       )}
@@ -440,12 +481,16 @@ function Lobby({
   me,
   send,
   onPick,
+  onProfile,
+  onInvite,
 }: {
   room: RoomSnapshot
   isHost: boolean
   me: string | null
   send: (m: Parameters<RoomSocket['send']>[0]) => void
   onPick: () => void
+  onProfile: (userId: number) => void
+  onInvite?: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const inviteUrl = `${window.location.origin}/rooms/${room.id}`
@@ -460,6 +505,16 @@ function Lobby({
     }
   }
   const share = () => navigator.share({ title: `${room.game.name} 함께 하기`, url: inviteUrl }).catch(() => {})
+  const shareKakao = () =>
+    shareToKakao({
+      title: '놀이터에서 같이 하자',
+      description: `${room.game.name} 방에 초대할게. 들어와서 같이 한 판!`,
+      path: `/rooms/${room.id}`,
+      buttonTitle: '방 들어가기',
+    }).catch((e: unknown) => {
+      console.warn(e)
+      window.prompt('초대 링크', inviteUrl)
+    })
   const maxRange = Array.from(
     { length: room.game.maxPlayersLimit - room.game.minPlayers + 1 },
     (_, i) => room.game.minPlayers + i,
@@ -481,19 +536,53 @@ function Lobby({
               공유
             </button>
           )}
+          {kakaoShareAvailable && (
+            <button type="button" className="btn btn-ghost" onClick={() => void shareKakao()}>
+              카톡으로 초대
+            </button>
+          )}
+          {onInvite && (
+            <button type="button" className="btn" onClick={onInvite}>
+              친구 초대
+            </button>
+          )}
         </div>
       </div>
 
       <ul className="room-players">
         {room.players.map((p) => (
           <li key={p.id} className="room-player">
-            <CharacterAvatar id={p.character} size={32} />
-            {p.nickname}
+            {p.userId !== null ? (
+              <button type="button" className="room-player-id" onClick={() => onProfile(p.userId!)} title="프로필 보기">
+                <CharacterAvatar id={p.character} size={32} />
+                <span>{p.nickname}</span>
+                <i className="room-player-info" aria-hidden>
+                  i
+                </i>
+              </button>
+            ) : (
+              <span className="room-player-id guest">
+                <CharacterAvatar id={p.character} size={32} />
+                <span>{p.nickname}</span>
+                <small className="room-guest">게스트</small>
+              </span>
+            )}
             {p.id === room.hostId && <span className="room-host-badge">방장</span>}
             {!p.connected && <span className="room-done"> 연결 끊김</span>}
             {p.id === me && (
               <button type="button" className="btn btn-ghost btn-small" onClick={onPick}>
                 바꾸기
+              </button>
+            )}
+            {isHost && p.id !== me && p.connected && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-small room-handover"
+                onClick={() =>
+                  window.confirm(`${p.nickname} 님에게 방장을 넘길까요?`) && send({ type: 'host', playerId: p.id })
+                }
+              >
+                방장 넘기기
               </button>
             )}
           </li>
@@ -653,8 +742,8 @@ function Chat({
   )
 }
 
+// 시간대를 지정하지 않아 보는 사람의 브라우저 로컬 시간으로 표시된다
 const clockFormat = new Intl.DateTimeFormat('ko-KR', {
-  timeZone: 'Asia/Seoul',
   hour12: false,
   hour: '2-digit',
   minute: '2-digit',

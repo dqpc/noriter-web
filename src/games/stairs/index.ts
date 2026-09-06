@@ -6,7 +6,7 @@ import { PreviewStairs } from './PreviewStairs'
 export const stairs: GameDefinition = {
   id: 'stairs',
   name: '계단 오르기',
-  description: '다음 계단이 있는 쪽을 빠르게 누르세요.',
+  description: '방향 전환, 오르기. 끝없이.',
   Icon: IconStairs,
   Preview: PreviewStairs,
   Component: GameStairs,

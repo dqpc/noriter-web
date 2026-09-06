@@ -5,8 +5,12 @@ import { ClimbIcon, TurnIcon } from './icons'
 
 import { getMyCharacter } from '../../characters'
 import { drawWith } from './draw'
+import { drawEffect, effectFor, type Effect } from './effects'
 
-function draw(canvas: HTMLCanvasElement, state: StairsState, options?: GameOptions) {
+const reduceMotion = () =>
+  typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+function draw(canvas: HTMLCanvasElement, state: StairsState, options?: GameOptions, effect: Effect | null = null) {
   drawWith(
     canvas,
     state.steps,
@@ -18,20 +22,25 @@ function draw(canvas: HTMLCanvasElement, state: StairsState, options?: GameOptio
     displaySteps(state, performance.now()),
     typeof options?.character === 'string' ? options.character : getMyCharacter(),
   )
+  drawEffect(canvas, effect, performance.now(), reduceMotion())
 }
+
+const localSeed = () => Math.floor(Math.random() * 2147483646) + 1
 
 function readSeed(options?: GameOptions): number {
   const seed = Number(options?.seed)
-  return Number.isInteger(seed) && seed > 0 ? seed : Math.floor(Math.random() * 2147483646) + 1
+  return Number.isInteger(seed) && seed > 0 ? seed : localSeed()
 }
 
 export function GameStairs({ host, options }: { host: GameHost; options?: GameOptions }) {
-  const roomMode = options?.seed !== undefined
+  // 방은 frozen 을 항상 넘긴다. 혼자 하기도 서버 seed 를 받으므로 seed 유무로는 구분할 수 없다
+  const roomMode = options?.frozen !== undefined
   const frozen = options?.frozen === true
   const [initial] = useState(() => newStairs(readSeed(options), performance.now(), roomMode && !frozen))
   const stateRef = useRef<StairsState>(initial)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
+  const effectRef = useRef<Effect | null>(null)
   const [steps, setSteps] = useState(0)
   const [ended, setEnded] = useState<{ fell: boolean } | null>(null)
 
@@ -40,8 +49,9 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
       const s = tick(stateRef.current, performance.now())
       const wasEnded = stateRef.current.ended
       stateRef.current = s
+      if (s.ended) effectRef.current = null
       const canvas = canvasRef.current
-      if (canvas) draw(canvas, s, options)
+      if (canvas) draw(canvas, s, options, effectRef.current)
       if (s.ended && !wasEnded) setEnded({ fell: s.fell })
       if (!s.ended) rafRef.current = requestAnimationFrame(frame)
     },
@@ -52,8 +62,10 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
     (action: Action) => {
       const before = stateRef.current
       if (before.ended || frozen) return
-      const after = press(before, action, performance.now())
+      const now = performance.now()
+      const after = press(before, action, now)
       stateRef.current = after
+      effectRef.current = effectFor(before, after, now) ?? effectRef.current
       if (after.steps !== before.steps) setSteps(after.steps)
       host.onState?.({
         steps: after.steps,
@@ -75,14 +87,20 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
   )
 
   const restart = useCallback(() => {
-    cancelAnimationFrame(rafRef.current)
-    stateRef.current = newStairs(readSeed(options), performance.now(), roomMode)
-    setSteps(0)
-    setEnded(null)
-    const canvas = canvasRef.current
-    if (canvas) draw(canvas, stateRef.current, options)
-    if (roomMode) rafRef.current = requestAnimationFrame(frame)
-  }, [options, roomMode, frame])
+    const begin = (seed: number) => {
+      cancelAnimationFrame(rafRef.current)
+      stateRef.current = newStairs(seed, performance.now(), roomMode)
+      effectRef.current = null
+      setSteps(0)
+      setEnded(null)
+      const canvas = canvasRef.current
+      if (canvas) draw(canvas, stateRef.current, options)
+      if (roomMode) rafRef.current = requestAnimationFrame(frame)
+    }
+    // 혼자 하기는 판마다 서버 세션(seed)을 새로 받는다. 못 받으면 로컬 seed 로 그냥 시작
+    if (host.startPlay) void host.startPlay().then((seed) => begin(seed ?? localSeed()))
+    else begin(readSeed(options))
+  }, [host, options, roomMode, frame])
 
   useEffect(() => {
     if (!roomMode) return
@@ -154,6 +172,20 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
     <div className="stairs">
       <div className="stairs-board-wrap">
         <canvas ref={canvasRef} className="stairs-board" aria-label="계단" />
+        {steps === 0 && !ended && (
+          <div className="stairs-tip" aria-live="polite">
+            <p className="stairs-tip-title">조작</p>
+            <p>
+              <kbd>Shift</kbd> 방향 전환 · <kbd>Space</kbd> 오르기
+              <br />
+              <small>모바일은 아래 왼쪽·오른쪽 버튼</small>
+            </p>
+            <p className="stairs-tip-dash">
+              <b>대시</b> 방향을 바꾸고 <em>바로</em> 오르면 4칸을 한 번에 뛰어요
+            </p>
+            <p className="stairs-tip-sub">번개를 밟으면 에너지가 가득 찹니다</p>
+          </div>
+        )}
         {ended && (
           <div className="g2048-overlay">
             <p>{ended.fell ? '떨어졌다!' : '지쳤다…'}</p>
@@ -193,8 +225,8 @@ export function GameStairs({ host, options }: { host: GameHost; options?: GameOp
         </button>
       </div>
       <p className="g2048-help">
-        보는 방향에 계단이 있으면 오르기, 반대쪽이면 방향 전환. 키보드는 Shift 와 스페이스. 번개를 밟으면 에너지가 가득
-        찹니다.
+        보는 방향에 계단이 있으면 오르기, 반대쪽이면 방향 전환. 키보드는 Shift 와 스페이스. 방향 전환 직후 바로 오르면
+        대시(4칸). 번개를 밟으면 에너지가 가득 찹니다.
       </p>
     </div>
   )
