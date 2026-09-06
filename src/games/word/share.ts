@@ -8,7 +8,7 @@ const EMOJI: Record<'normal' | 'contrast', Record<Status, string>> = {
 }
 
 export interface ShareInput {
-  /** 오늘의 단어 번호. 문제 만들기면 null */
+  /** 글딱지 번호. 문제 만들기면 null */
   number: number | null
   /** 맞힌 도전 횟수. 실패면 null */
   attempts: number | null
@@ -25,8 +25,8 @@ export function buildShareText(input: ShareInput): string {
   const score = `${input.attempts ?? 'X'}/6${input.hard ? '*' : ''}`
   const head =
     input.number === null
-      ? `놀이터 단어 ${score}\n${input.creator ?? ''}의 놀이`
-      : `놀이터 단어 ${input.number} ${score}${input.streak !== null ? ` 🔥${input.streak}` : ''}`
+      ? `글딱지 ${score}\n${input.creator ?? ''}의 놀이`
+      : `글딱지 ${input.number} ${score}${input.streak !== null ? ` 🔥${input.streak}` : ''}`
   const palette = EMOJI[input.highContrast ? 'contrast' : 'normal']
   const grid = input.rows.map((row) => row.map((s) => palette[s]).join('')).join('\n')
   const parts = [head, grid]

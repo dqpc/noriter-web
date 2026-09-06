@@ -17,7 +17,7 @@ export function IconWord({ size = 56 }: { size?: number }) {
     ],
   ]
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="오늘의 단어">
+    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="글딱지">
       <rect width="64" height="64" rx="10" fill="#1c1917" />
       {rows.map((row, r) =>
         row.map(([bg, ch], c) => {

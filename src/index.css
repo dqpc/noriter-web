@@ -3240,7 +3240,7 @@ body.fullscreen .spectate-view {
   max-width: min(100%, calc(100dvh - 200px));
 }
 
-/* 오늘의 단어 */
+/* 글딱지 */
 .word {
   --word-correct: #6aaa64;
   --word-present: #c9b458;
