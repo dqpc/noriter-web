@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { YutCardInfo, YutView } from './board'
 
-const DEAL_MS = 2600
+const INTRO_MS = 1100
+const DEAL_MS = 3400
 const DEAL_STAGGER_MS = 160
 const REVEAL_MS = 2400
 const PILE = 5
@@ -10,7 +11,7 @@ export interface CardShow {
   pileKey: string
   player: string
   trigger: string
-  stage: 'deal' | 'pick' | 'reveal'
+  stage: 'intro' | 'deal' | 'pick' | 'reveal'
   picked: number | null
   card: YutCardInfo | null
 }
@@ -36,7 +37,7 @@ export function useCardShow(v: YutView, busy: boolean): CardShow | null {
     })
   } else if (pileKey && pileKey !== seenPile && !busy && (show === null || show.stage !== 'reveal')) {
     setSeenPile(pileKey)
-    setShow({ pileKey, player: v.card!.player, trigger: v.card!.trigger, stage: 'deal', picked: null, card: null })
+    setShow({ pileKey, player: v.card!.player, trigger: v.card!.trigger, stage: 'intro', picked: null, card: null })
   } else if (!pileKey && show && show.stage !== 'reveal' && !revealKey) {
     setShow(null)
   }
@@ -44,6 +45,13 @@ export function useCardShow(v: YutView, busy: boolean): CardShow | null {
   const stage = show?.stage
   const key = show?.pileKey
   useEffect(() => {
+    if (stage === 'intro') {
+      const t = window.setTimeout(
+        () => setShow((s) => (s && s.stage === 'intro' ? { ...s, stage: 'deal' } : s)),
+        INTRO_MS,
+      )
+      return () => window.clearTimeout(t)
+    }
     if (stage === 'deal') {
       const t = window.setTimeout(
         () => setShow((s) => (s && s.stage === 'deal' ? { ...s, stage: 'pick' } : s)),
