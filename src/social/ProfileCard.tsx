@@ -11,6 +11,7 @@ import {
   type GameStats,
   type Profile,
 } from '../lib/auth'
+import { EnvelopeIcon } from './EnvelopeIcon'
 import { PresenceDot } from './PresenceDot'
 
 export function ProfileCard({
@@ -107,8 +108,13 @@ export function ProfileCard({
             )}
             <div className="profile-actions">
               {me && me.id !== profile.id && onMessage && profile.friend && (
-                <button type="button" className="btn" onClick={() => onMessage(profile.id)}>
-                  쪽지
+                <button
+                  type="button"
+                  className="btn btn-icon"
+                  onClick={() => onMessage(profile.id)}
+                  title="쪽지 보내기"
+                >
+                  <EnvelopeIcon /> 쪽지
                 </button>
               )}
               {me && me.id !== profile.id && (
